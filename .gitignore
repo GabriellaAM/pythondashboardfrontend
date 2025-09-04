@@ -1,0 +1,60 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.python-version
+.pytest_cache/
+.coverage*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenv (backend)
+backend/venv/
+
+# Env files (backend e variantes)
+backend/.env
+backend/.env.local
+backend/.env.development
+backend/.env.production
+
+# Vite/Vitest/coverage
+.vite/
+coverage/
+
+# SO (Windows)
+Thumbs.db
+ehthumbs.db
+
+# Ferramentas cloud (se usar)
+.vercel/
+.netlify/
