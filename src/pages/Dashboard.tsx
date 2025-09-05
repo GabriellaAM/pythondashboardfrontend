@@ -88,8 +88,10 @@ export default function Dashboard() {
     const isShare = location.pathname.startsWith('/share/');
     const isPublic = location.pathname.startsWith('/public/');
     if (isShare || isPublic) {
+      setComponents([]);
       loadDashboard();
     } else if (currentDashboardId && isAuthenticated) {
+      setComponents([]);
       loadDashboard();
     }
   }, [currentDashboardId, isAuthenticated, location.pathname, shareToken]);
@@ -97,6 +99,7 @@ export default function Dashboard() {
   const loadDashboard = async () => {
     try {
       setLoading(true);
+      const idBeingLoaded = currentDashboardId;
       const isShare = location.pathname.startsWith('/share/');
       const isPublic = location.pathname.startsWith('/public/');
 
@@ -106,7 +109,11 @@ export default function Dashboard() {
       if (isShare && shareToken) {
         try {
           const sharedDashboard = await apiClient.getSharedDashboardByToken(shareToken);
-          setCurrentDashboard(sharedDashboard);
+          if (idBeingLoaded === currentDashboardId) {
+            setCurrentDashboard(sharedDashboard);
+          } else {
+            return;
+          }
         } catch (e) {
           console.warn('Failed to load shared dashboard info:', e);
         }
@@ -114,7 +121,11 @@ export default function Dashboard() {
       } else if (isPublic && currentDashboardId) {
         try {
           const dashboard = await apiClient.getDashboard(currentDashboardId);
-          setCurrentDashboard(dashboard);
+          if (idBeingLoaded === currentDashboardId) {
+            setCurrentDashboard(dashboard);
+          } else {
+            return;
+          }
         } catch (e) {
           console.warn('Failed to load public dashboard info:', e);
         }
@@ -123,7 +134,11 @@ export default function Dashboard() {
         // Authenticated flow
         try {
           const dashboard = await apiClient.getDashboard(currentDashboardId);
-          setCurrentDashboard(dashboard);
+          if (idBeingLoaded === currentDashboardId) {
+            setCurrentDashboard(dashboard);
+          } else {
+            return;
+          }
         } catch (error) {
           console.warn('Failed to load dashboard info:', error);
         }
@@ -144,7 +159,9 @@ export default function Dashboard() {
             h: comp.height || (comp.type === 'kpi' ? 2 : 4)
           }
         }));
-        setComponents(mappedComponents);
+        if (idBeingLoaded === currentDashboardId) {
+          setComponents(mappedComponents);
+        }
       } catch (error) {
         console.error('Failed to load components from backend:', error);
         setComponents([]);
