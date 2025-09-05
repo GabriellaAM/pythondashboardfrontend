@@ -16,17 +16,10 @@ interface DashboardKPIProps {
 }
 
 const KPISkeleton = () => (
-  <div className="h-full flex flex-col justify-between p-4 rounded-lg border">
-    <div className="flex items-center justify-between mb-2">
-      <Skeleton className="w-6 h-6 rounded-full" />
-      <Skeleton className="w-12 h-6 rounded" />
-    </div>
-    <div className="flex-1 flex flex-col justify-center">
-      <div className="mb-2">
-        <Skeleton className="h-10 w-20 mb-2" />
-      </div>
-      <Skeleton className="h-4 w-full" />
-    </div>
+  <div className="h-full flex flex-col justify-center p-4 space-y-3">
+    <Skeleton className="h-8 w-16" />
+    <Skeleton className="h-4 w-full" />
+    <Skeleton className="h-4 w-3/4" />
   </div>
 );
 

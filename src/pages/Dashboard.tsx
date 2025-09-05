@@ -10,6 +10,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -414,101 +415,67 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="p-6 space-y-6">
-        {/* Header */}
+        {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-            <div className="h-4 w-64 bg-muted rounded animate-pulse" />
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-64" />
           </div>
           <div className="flex gap-2">
-            <div className="h-10 w-24 bg-muted rounded animate-pulse" />
-            <div className="h-10 w-24 bg-muted rounded animate-pulse" />
-            <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-20" />
           </div>
         </div>
 
         {/* Components Grid Skeleton */}
         <div className="min-h-[400px] grid grid-cols-12 gap-4">
-          <div className="col-span-6 h-64">
-            <div className="h-full border rounded-lg p-4 space-y-4 bg-card">
+          {/* Chart Component */}
+          <div className="col-span-6">
+            <div className="h-64 border rounded-lg p-4 space-y-4 bg-card">
               <div className="flex items-center justify-between">
-                <div className="h-5 w-32 bg-muted rounded animate-pulse" />
-                <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-5" />
               </div>
               <div className="space-y-3">
-                <div className="flex justify-between items-end h-32">
-                  <div className="w-8 h-16 bg-muted rounded animate-pulse" />
-                  <div className="w-8 h-20 bg-muted rounded animate-pulse" />
-                  <div className="w-8 h-12 bg-muted rounded animate-pulse" />
-                  <div className="w-8 h-24 bg-muted rounded animate-pulse" />
-                  <div className="w-8 h-8 bg-muted rounded animate-pulse" />
-                  <div className="w-8 h-16 bg-muted rounded animate-pulse" />
-                </div>
+                <Skeleton className="w-full h-4" />
+                <Skeleton className="w-full h-32" />
+                <Skeleton className="w-3/4 h-4" />
               </div>
             </div>
           </div>
-          <div className="col-span-6 h-64">
-            <div className="h-full border rounded-lg p-4 space-y-4 bg-card">
+          
+          {/* Table Component */}
+          <div className="col-span-6">
+            <div className="h-64 border rounded-lg p-4 space-y-4 bg-card">
               <div className="flex items-center justify-between">
-                <div className="h-5 w-32 bg-muted rounded animate-pulse" />
-                <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-5" />
               </div>
               <div className="space-y-2">
-                <div className="flex gap-4">
-                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-                  <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-                  <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                <Skeleton className="w-full h-6" />
+                <Skeleton className="w-full h-5" />
+                <Skeleton className="w-5/6 h-5" />
+                <Skeleton className="w-4/5 h-5" />
+              </div>
+            </div>
+          </div>
+          
+          {/* KPI Components */}
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="col-span-3">
+              <div className="h-32 border rounded-lg p-4 space-y-3 bg-card">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-5" />
                 </div>
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-                    <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-                    <div className="h-4 w-16 bg-muted rounded animate-pulse" />
-                  </div>
-                ))}
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="col-span-3 h-32">
-            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
-              <div className="flex items-center justify-between">
-                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
-                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-full bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="col-span-3 h-32">
-            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
-              <div className="flex items-center justify-between">
-                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
-                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-full bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="col-span-3 h-32">
-            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
-              <div className="flex items-center justify-between">
-                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
-                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-full bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="col-span-3 h-32">
-            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
-              <div className="flex items-center justify-between">
-                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
-                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-full bg-muted rounded animate-pulse" />
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     );
@@ -519,12 +486,21 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            {currentDashboard?.name || 'Dashboard'}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {currentDashboard?.description || 'Visualize and analyze your data'}
-          </p>
+          {currentDashboard ? (
+            <>
+              <h1 className="text-3xl font-bold text-foreground">
+                {currentDashboard.name}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {currentDashboard.description || 'Visualize and analyze your data'}
+              </p>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="h-5 w-64" />
+            </div>
+          )}
         </div>
         
         <div className="flex gap-2">

@@ -14,26 +14,11 @@ interface DashboardTableProps {
 
 const TableSkeleton = () => (
   <div className="w-full space-y-3">
-    <div className="border rounded-md overflow-hidden">
-      <div className="bg-muted/50 p-3 border-b">
-        <div className="flex gap-4">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-      </div>
-      <div className="p-3 space-y-2">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex gap-4">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <Skeleton className="w-full h-8" />
+    <Skeleton className="w-full h-6" />
+    <Skeleton className="w-5/6 h-6" />
+    <Skeleton className="w-4/5 h-6" />
+    <Skeleton className="w-3/4 h-6" />
   </div>
 );
 

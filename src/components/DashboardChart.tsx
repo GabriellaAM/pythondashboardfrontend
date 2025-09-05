@@ -20,22 +20,12 @@ const CHART_COLORS = [
 ];
 
 const ChartSkeleton = () => (
-  <div className="w-full h-[200px] space-y-3">
-    <div className="flex justify-between items-end h-32">
-      <Skeleton className="w-8 h-16" />
-      <Skeleton className="w-8 h-20" />
-      <Skeleton className="w-8 h-12" />
-      <Skeleton className="w-8 h-24" />
-      <Skeleton className="w-8 h-8" />
-      <Skeleton className="w-8 h-16" />
-    </div>
-    <div className="flex justify-between">
-      <Skeleton className="w-8 h-3" />
-      <Skeleton className="w-8 h-3" />
-      <Skeleton className="w-8 h-3" />
-      <Skeleton className="w-8 h-3" />
-      <Skeleton className="w-8 h-3" />
-      <Skeleton className="w-8 h-3" />
+  <div className="w-full h-[200px] flex items-center justify-center">
+    <div className="w-full h-full space-y-4">
+      <Skeleton className="w-full h-4" />
+      <Skeleton className="w-full h-32" />
+      <Skeleton className="w-3/4 h-4" />
+      <Skeleton className="w-1/2 h-4" />
     </div>
   </div>
 );
