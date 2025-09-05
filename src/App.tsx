@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
@@ -34,6 +34,11 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
+};
+
+const DashboardRoute = () => {
+  const location = useLocation();
+  return <Dashboard key={location.pathname} />;
 };
 
 const App = () => (
@@ -69,20 +74,19 @@ const App = () => (
             <Route path="/dashboard/:id" element={
               <ProtectedRoute>
                 <Layout>
-                  {/* Remontar Dashboard ao mudar de :id para evitar estado residual */}
-                  <Dashboard key={location.pathname} />
+                  <DashboardRoute />
                 </Layout>
               </ProtectedRoute>
             } />
             {/* Public/Shared routes (no auth required) */}
             <Route path="/public/:id" element={
               <Layout>
-                <Dashboard key={location.pathname} />
+                <DashboardRoute />
               </Layout>
             } />
             <Route path="/share/:token" element={
               <Layout>
-                <Dashboard key={location.pathname} />
+                <DashboardRoute />
               </Layout>
             } />
             <Route path="/analytics" element={

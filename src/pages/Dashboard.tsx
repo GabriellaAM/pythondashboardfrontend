@@ -44,6 +44,7 @@ export default function Dashboard() {
   const location = useLocation();
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [componentLoading, setComponentLoading] = useState<Set<string>>(new Set());
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const { currentDashboard, setCurrentDashboard } = useDashboard();
   const { isAuthenticated } = useAuth();
@@ -159,6 +160,7 @@ export default function Dashboard() {
         }));
         if (idBeingLoaded === currentDashboardId) {
           setComponents(mappedComponents);
+          setComponentLoading(new Set()); // Clear component loading state
         }
       } catch (error) {
         console.error('Failed to load components from backend:', error);
@@ -411,16 +413,101 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 w-64 bg-muted rounded" />
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-6 h-48 bg-muted rounded" />
-            <div className="col-span-6 h-48 bg-muted rounded" />
-            <div className="col-span-3 h-24 bg-muted rounded" />
-            <div className="col-span-3 h-24 bg-muted rounded" />
-            <div className="col-span-3 h-24 bg-muted rounded" />
-            <div className="col-span-3 h-24 bg-muted rounded" />
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-64 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+
+        {/* Components Grid Skeleton */}
+        <div className="min-h-[400px] grid grid-cols-12 gap-4">
+          <div className="col-span-6 h-64">
+            <div className="h-full border rounded-lg p-4 space-y-4 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-end h-32">
+                  <div className="w-8 h-16 bg-muted rounded animate-pulse" />
+                  <div className="w-8 h-20 bg-muted rounded animate-pulse" />
+                  <div className="w-8 h-12 bg-muted rounded animate-pulse" />
+                  <div className="w-8 h-24 bg-muted rounded animate-pulse" />
+                  <div className="w-8 h-8 bg-muted rounded animate-pulse" />
+                  <div className="w-8 h-16 bg-muted rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-span-6 h-64">
+            <div className="h-full border rounded-lg p-4 space-y-4 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex gap-4">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                  <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                </div>
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="col-span-3 h-32">
+            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
+                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="col-span-3 h-32">
+            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
+                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="col-span-3 h-32">
+            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
+                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="col-span-3 h-32">
+            <div className="h-full border rounded-lg p-4 space-y-2 bg-card">
+              <div className="flex items-center justify-between">
+                <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />
+                <div className="w-12 h-6 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            </div>
           </div>
         </div>
       </div>
@@ -505,11 +592,11 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="h-[calc(100%-60px)] overflow-hidden">
                   {component.type === 'chart' ? (
-                    <DashboardChart data={component.data} />
+                    <DashboardChart data={component.data} loading={componentLoading.has(component.id)} />
                   ) : component.type === 'table' ? (
-                    <DashboardTable data={component.data} />
+                    <DashboardTable data={component.data} loading={componentLoading.has(component.id)} />
                   ) : (
-                    <DashboardKPI data={component.data} />
+                    <DashboardKPI data={component.data} loading={componentLoading.has(component.id)} />
                   )}
                 </CardContent>
               </Card>

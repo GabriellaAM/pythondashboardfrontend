@@ -1,4 +1,5 @@
 import { getCellStyleFromRules, borderStyles, TableFormatting } from "@/lib/formatting";
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TableData {
   headers: string[];
@@ -7,10 +8,40 @@ interface TableData {
 }
 
 interface DashboardTableProps {
-  data: TableData;
+  data?: TableData;
+  loading?: boolean;
 }
 
-export function DashboardTable({ data }: DashboardTableProps) {
+const TableSkeleton = () => (
+  <div className="w-full space-y-3">
+    <div className="border rounded-md overflow-hidden">
+      <div className="bg-muted/50 p-3 border-b">
+        <div className="flex gap-4">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      </div>
+      <div className="p-3 space-y-2">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex gap-4">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+export function DashboardTable({ data, loading = false }: DashboardTableProps) {
+  if (loading || !data) {
+    return <TableSkeleton />;
+  }
+  
   const { headers, rows, formatting } = data;
 
   const getRowClassName = (rowIndex: number) => {

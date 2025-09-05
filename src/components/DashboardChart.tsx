@@ -1,4 +1,5 @@
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ChartData {
   type: 'line' | 'bar' | 'pie' | 'area';
@@ -6,7 +7,8 @@ interface ChartData {
 }
 
 interface DashboardChartProps {
-  data: ChartData;
+  data?: ChartData;
+  loading?: boolean;
 }
 
 const CHART_COLORS = [
@@ -17,7 +19,31 @@ const CHART_COLORS = [
   'rgb(var(--chart-5))',
 ];
 
-export function DashboardChart({ data }: DashboardChartProps) {
+const ChartSkeleton = () => (
+  <div className="w-full h-[200px] space-y-3">
+    <div className="flex justify-between items-end h-32">
+      <Skeleton className="w-8 h-16" />
+      <Skeleton className="w-8 h-20" />
+      <Skeleton className="w-8 h-12" />
+      <Skeleton className="w-8 h-24" />
+      <Skeleton className="w-8 h-8" />
+      <Skeleton className="w-8 h-16" />
+    </div>
+    <div className="flex justify-between">
+      <Skeleton className="w-8 h-3" />
+      <Skeleton className="w-8 h-3" />
+      <Skeleton className="w-8 h-3" />
+      <Skeleton className="w-8 h-3" />
+      <Skeleton className="w-8 h-3" />
+      <Skeleton className="w-8 h-3" />
+    </div>
+  </div>
+);
+
+export function DashboardChart({ data, loading = false }: DashboardChartProps) {
+  if (loading || !data) {
+    return <ChartSkeleton />;
+  }
   const renderChart = () => {
     const commonProps = {
       data: data.data,
