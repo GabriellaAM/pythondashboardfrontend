@@ -253,12 +253,25 @@ export default function Dashboard() {
         }
       });
       
-      await Promise.all(updatePromises);
-      
-      toast({
-        title: "Success",
-        description: "Layout saved successfully",
-      });
+      if (updatePromises.length === 0) {
+        return;
+      }
+
+      const results = await Promise.allSettled(updatePromises);
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length === 0) {
+        toast({
+          title: "Success",
+          description: "Layout saved successfully",
+        });
+      } else if (failures.length < results.length) {
+        toast({
+          title: "Partial success",
+          description: `Some items failed to save (${failures.length}/${results.length}).`,
+        });
+      } else {
+        throw new Error('All layout updates failed');
+      }
     } catch (error) {
       console.error('Failed to save layout:', error);
       toast({
