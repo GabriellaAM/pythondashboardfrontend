@@ -413,12 +413,38 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <div className="text-center">
-            <p className="text-lg font-medium">Loading Dashboard</p>
-            <p className="text-muted-foreground">Please wait while we load your data...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/20">
+        <div className="flex flex-col items-center gap-8 p-8">
+          {/* Logo/Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg">
+              <BarChart3 className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-bold text-foreground">DataViz Pro</h1>
+              <p className="text-sm text-muted-foreground">Analytics Platform</p>
+            </div>
+          </div>
+
+          {/* Loading Animation */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-muted border-t-primary rounded-full animate-spin" />
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-primary/50 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }} />
+          </div>
+
+          {/* Loading Text */}
+          <div className="text-center space-y-2">
+            <p className="text-xl font-semibold text-foreground">Loading Your Dashboard</p>
+            <p className="text-muted-foreground max-w-md">
+              We're preparing your analytics workspace with the latest data and insights...
+            </p>
+          </div>
+
+          {/* Progress Dots */}
+          <div className="flex gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-primary/70 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+            <div className="w-2 h-2 bg-primary/40 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
           </div>
         </div>
       </div>
