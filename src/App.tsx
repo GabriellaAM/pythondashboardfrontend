@@ -69,19 +69,20 @@ const App = () => (
             <Route path="/dashboard/:id" element={
               <ProtectedRoute>
                 <Layout>
-                  <Dashboard />
+                  {/* Remontar Dashboard ao mudar de :id para evitar estado residual */}
+                  <Dashboard key={location.pathname} />
                 </Layout>
               </ProtectedRoute>
             } />
             {/* Public/Shared routes (no auth required) */}
             <Route path="/public/:id" element={
               <Layout>
-                <Dashboard />
+                <Dashboard key={location.pathname} />
               </Layout>
             } />
             <Route path="/share/:token" element={
               <Layout>
-                <Dashboard />
+                <Dashboard key={location.pathname} />
               </Layout>
             } />
             <Route path="/analytics" element={
