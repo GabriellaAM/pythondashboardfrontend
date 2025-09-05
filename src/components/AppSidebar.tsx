@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import { 
-  LayoutDashboard, 
   BarChart3, 
-  Table, 
   Settings, 
   Plus,
   ChevronDown,
-  Database,
   LogOut,
   User,
   MoreHorizontal,
@@ -41,9 +38,6 @@ import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { cn } from "@/lib/utils";
 
 const mainNavItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Data Sources", url: "/data-sources", icon: Database },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -74,7 +68,12 @@ export function AppSidebar() {
   
   const collapsed = state === "collapsed";
 
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => {
+    if (path === '/settings') {
+      return currentPath === path;
+    }
+    return currentPath === path;
+  };
 
   // Load dashboards from API
   useEffect(() => {

@@ -7,8 +7,6 @@ import { Layout } from "@/components/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import Dashboard from "@/pages/Dashboard";
-import Analytics from "@/pages/Analytics";
-import DataSources from "@/pages/DataSources";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
@@ -71,11 +69,17 @@ const App = () => (
             } />
             
             {/* Protected routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <DashboardRoute />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Layout>
-                  <Dashboard />
+                  <DashboardRoute />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -96,20 +100,6 @@ const App = () => (
               <Layout>
                 <DashboardRoute />
               </Layout>
-            } />
-            <Route path="/analytics" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Analytics />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/data-sources" element={
-              <ProtectedRoute>
-                <Layout>
-                  <DataSources />
-                </Layout>
-              </ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute>
