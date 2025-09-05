@@ -1,8 +1,7 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Button } from "@/components/ui/button";
-import { User, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -26,13 +25,6 @@ export function Layout({ children }: LayoutProps) {
                 </div>
                 <h1 className="font-semibold text-foreground">DataViz Pro</h1>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Account</span>
-              </Button>
             </div>
           </header>
           

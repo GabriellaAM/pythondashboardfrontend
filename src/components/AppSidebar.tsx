@@ -533,28 +533,40 @@ export function AppSidebar() {
         <div className="mt-auto border-t border-sidebar-border">
           {!collapsed && user && (
             <div className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-sidebar-accent rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-sidebar-accent-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-sidebar-foreground truncate">
-                    {user.full_name}
-                  </p>
-                  <p className="text-xs text-sidebar-foreground/70 truncate">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground"
-              >
-                <LogOut className="w-3 h-3" />
-                <span>Sign out</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full p-2 h-auto justify-start hover:bg-sidebar-accent"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <div className="w-8 h-8 bg-sidebar-accent rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-sidebar-accent-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-medium text-sidebar-foreground truncate">
+                          {user.full_name}
+                        </p>
+                        <p className="text-xs text-sidebar-foreground/70 truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <NavLink to="/account" className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Account Settings
+                    </NavLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={logout} className="flex items-center gap-2">
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
           
