@@ -88,10 +88,8 @@ export default function Dashboard() {
     const isShare = location.pathname.startsWith('/share/');
     const isPublic = location.pathname.startsWith('/public/');
     if (isShare || isPublic) {
-      setComponents([]);
       loadDashboard();
     } else if (currentDashboardId && isAuthenticated) {
-      setComponents([]);
       loadDashboard();
     }
   }, [currentDashboardId, isAuthenticated, location.pathname, shareToken]);
@@ -413,8 +411,18 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading dashboard...</div>
+      <div className="p-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-64 bg-muted rounded" />
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-6 h-48 bg-muted rounded" />
+            <div className="col-span-6 h-48 bg-muted rounded" />
+            <div className="col-span-3 h-24 bg-muted rounded" />
+            <div className="col-span-3 h-24 bg-muted rounded" />
+            <div className="col-span-3 h-24 bg-muted rounded" />
+            <div className="col-span-3 h-24 bg-muted rounded" />
+          </div>
+        </div>
       </div>
     );
   }
