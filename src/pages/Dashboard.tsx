@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { Plus, MoreVertical, BarChart3, Table, Target } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { apiClient } from "@/lib/api";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Responsive, WidthProvider, Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -39,41 +40,29 @@ interface ComponentItem {
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 export default function Dashboard() {
-  const { id: dashboardId } = useParams();
+  const { id: dashboardId, token: shareToken } = useParams();
+  const location = useLocation();
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const { currentDashboard, setCurrentDashboard } = useDashboard();
+  const { isAuthenticated } = useAuth();
 
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isKPIModalOpen, setIsKPIModalOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<ComponentItem | null>(null);
 
-  // Auto login and load dashboard
+  // Initialize dashboard selection when authenticated or when in public/share route
   useEffect(() => {
     const initializeApp = async () => {
-      // Auto login if no token - try with multiple accounts for demo
-      const existingToken = localStorage.getItem('auth_token');
-      if (!existingToken) {
-        try {
-          console.log('Attempting auto-login with user@test.com...');
-          const response = await apiClient.login('user@test.com', 'password123');
-          console.log('Auto-login successful:', response);
-        } catch (error) {
-          console.warn('Auto-login failed with user@test.com, trying newuser@test.com...');
-          try {
-            const response = await apiClient.login('newuser@test.com', 'password123');
-            console.log('Auto-login successful with newuser:', response);
-          } catch (error2) {
-            console.warn('Auto-login failed with both accounts:', error2);
-          }
-        }
-      }
-      
+      const isShare = location.pathname.startsWith('/share/');
+      const isPublic = location.pathname.startsWith('/public/');
+      if (!isAuthenticated && !isShare && !isPublic) return;
+
       // Set dashboard ID
       let dashId = dashboardId;
-      if (!dashId) {
+      if (!dashId && !isShare) {
         // If no dashboard ID in URL, get first dashboard from API
         try {
           const dashboards = await apiClient.getDashboards();
@@ -87,35 +76,61 @@ export default function Dashboard() {
           console.warn('Could not load dashboards:', error);
         }
       }
-      
+
       setCurrentDashboardId(dashId);
     };
-    
+
     initializeApp();
-  }, [dashboardId]);
+  }, [dashboardId, isAuthenticated, location.pathname]);
   
-  // Load dashboard data when currentDashboardId changes
+  // Load dashboard data when route context changes
   useEffect(() => {
-    if (currentDashboardId) {
+    const isShare = location.pathname.startsWith('/share/');
+    const isPublic = location.pathname.startsWith('/public/');
+    if (isShare || isPublic) {
+      loadDashboard();
+    } else if (currentDashboardId && isAuthenticated) {
       loadDashboard();
     }
-  }, [currentDashboardId]);
+  }, [currentDashboardId, isAuthenticated, location.pathname, shareToken]);
 
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      
-      // Try to load dashboard info
-      try {
-        const dashboard = await apiClient.getDashboard(currentDashboardId);
-        setCurrentDashboard(dashboard);
-      } catch (error) {
-        console.log('No dashboard found, using default');
+      const isShare = location.pathname.startsWith('/share/');
+      const isPublic = location.pathname.startsWith('/public/');
+
+      // Load dashboard info and components based on route type
+      let backendComponents: any[] = [];
+
+      if (isShare && shareToken) {
+        try {
+          const sharedDashboard = await apiClient.getSharedDashboardByToken(shareToken);
+          setCurrentDashboard(sharedDashboard);
+        } catch (e) {
+          console.warn('Failed to load shared dashboard info:', e);
+        }
+        backendComponents = await apiClient.getSharedComponentsByToken(shareToken);
+      } else if (isPublic && currentDashboardId) {
+        try {
+          const dashboard = await apiClient.getDashboard(currentDashboardId);
+          setCurrentDashboard(dashboard);
+        } catch (e) {
+          console.warn('Failed to load public dashboard info:', e);
+        }
+        backendComponents = await apiClient.getPublicDashboardComponents(currentDashboardId);
+      } else if (currentDashboardId) {
+        // Authenticated flow
+        try {
+          const dashboard = await apiClient.getDashboard(currentDashboardId);
+          setCurrentDashboard(dashboard);
+        } catch (error) {
+          console.warn('Failed to load dashboard info:', error);
+        }
+        backendComponents = await apiClient.getDashboardComponents(currentDashboardId);
       }
-      
-      // Try to load components
+
       try {
-        const backendComponents = await apiClient.getDashboardComponents(currentDashboardId);
         const mappedComponents: ComponentItem[] = backendComponents.map((comp: any) => ({
           id: comp.id,
           backendId: comp.id,
@@ -131,69 +146,8 @@ export default function Dashboard() {
         }));
         setComponents(mappedComponents);
       } catch (error) {
-        console.log('No components found, using demo data');
-        // Load demo data if no backend components
-        setComponents([
-          {
-            id: '1',
-            type: 'chart',
-            title: 'Monthly Revenue',
-            layout: { x: 0, y: 0, w: 6, h: 4 },
-            data: {
-              type: 'line',
-              data: [
-                { name: 'Jan', value: 4000 },
-                { name: 'Feb', value: 3000 },
-                { name: 'Mar', value: 5000 },
-                { name: 'Apr', value: 4500 },
-                { name: 'May', value: 6000 },
-                { name: 'Jun', value: 5500 },
-              ]
-            }
-          },
-          {
-            id: '2',
-            type: 'table',
-            title: 'Top Products',
-            layout: { x: 6, y: 0, w: 6, h: 4 },
-            data: {
-              headers: ['Product', 'Sales', 'Revenue', 'Growth'],
-              rows: [
-                ['Product A', '1,234', '$12,340', '+15%'],
-                ['Product B', '987', '$9,870', '+8%'],
-                ['Product C', '756', '$7,560', '+22%'],
-                ['Product D', '543', '$5,430', '-5%'],
-              ]
-            }
-          },
-          {
-            id: '3',
-            type: 'kpi',
-            title: 'Total Revenue',
-            layout: { x: 0, y: 4, w: 3, h: 2 },
-            data: {
-              value: '145,720',
-              unit: '$',
-              change: '+12.5%',
-              changeType: 'increase',
-              icon: 'trending-up',
-              description: 'Monthly recurring revenue across all products'
-            }
-          },
-          {
-            id: '4',
-            type: 'kpi',
-            title: 'Active Users',
-            layout: { x: 3, y: 4, w: 3, h: 2 },
-            data: {
-              value: '2,847',
-              change: '+8.2%',
-              changeType: 'increase',
-              icon: 'target',
-              description: 'Users who logged in within the last 30 days'
-            }
-          }
-        ]);
+        console.error('Failed to load components from backend:', error);
+        setComponents([]);
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -408,14 +362,8 @@ export default function Dashboard() {
           };
           setComponents(prev => [...prev, newComponent]);
         } catch (error) {
-          // Fallback to local component if backend fails
-          console.error('Failed to save to backend, using local:', error);
-          const newComponent: ComponentItem = {
-            ...component,
-            id: Date.now().toString(),
-            layout: defaultLayout
-          };
-          setComponents(prev => [...prev, newComponent]);
+          console.error('Failed to save to backend:', error);
+          throw error;
         }
       }
       

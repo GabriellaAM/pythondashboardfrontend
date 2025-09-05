@@ -73,6 +73,17 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            {/* Public/Shared routes (no auth required) */}
+            <Route path="/public/:id" element={
+              <Layout>
+                <Dashboard />
+              </Layout>
+            } />
+            <Route path="/share/:token" element={
+              <Layout>
+                <Dashboard />
+              </Layout>
+            } />
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <Layout>

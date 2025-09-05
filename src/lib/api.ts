@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -148,6 +148,19 @@ class ApiClient {
   // Components
   async getDashboardComponents(dashboardId: string) {
     return this.request<any[]>(`/api/components/dashboard/${dashboardId}`);
+  }
+
+  // Public/Shared components (no auth)
+  async getPublicDashboardComponents(dashboardId: string) {
+    return this.request<any[]>(`/api/components/public/dashboard/${dashboardId}`);
+  }
+
+  async getSharedDashboardByToken(shareToken: string) {
+    return this.request<any>(`/api/dashboards/shared/${shareToken}`);
+  }
+
+  async getSharedComponentsByToken(shareToken: string) {
+    return this.request<any[]>(`/api/components/shared/${shareToken}`);
   }
 
   async getComponent(id: string) {

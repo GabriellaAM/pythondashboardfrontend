@@ -119,21 +119,11 @@ export function AppSidebar() {
       console.log('Dashboards loaded:', dashboardsData);
       setDashboards(dashboardsData || []);
       
-      // If no dashboards exist, create a welcome dashboard
-      if (!dashboardsData || dashboardsData.length === 0) {
-        console.log('No dashboards found, creating welcome dashboard...');
-        await createWelcomeDashboard();
-      }
+      // Em produção não criar automaticamente dashboard/components
+      // O usuário deve criar manualmente
     } catch (error) {
       console.warn('Could not load dashboards:', error);
-      // If we can't load dashboards but user seems authenticated, try to create welcome dashboard
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        console.log('Auth token exists, attempting to create welcome dashboard...');
-        await createWelcomeDashboard();
-      } else {
-        console.log('No auth token found, skipping welcome dashboard creation');
-      }
+      console.log('Skipping auto-creation of welcome dashboard');
     } finally {
       setLoading(false);
     }
