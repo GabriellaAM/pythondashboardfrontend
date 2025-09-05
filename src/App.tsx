@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
@@ -22,25 +21,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/10">
-        <div className="flex flex-col items-center gap-6 p-8">
-          {/* Logo/Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg">
-              <BarChart3 className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-2xl font-bold text-foreground">DataViz Pro</h1>
-              <p className="text-sm text-muted-foreground">Analytics Platform</p>
-            </div>
-          </div>
-
-          {/* Loading Spinner */}
-          <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
-          
-          {/* Loading Text */}
-          <p className="text-muted-foreground">Initializing application...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-6 h-6 border-2 border-muted border-t-foreground rounded-full animate-spin" />
       </div>
     );
   }
@@ -53,25 +35,8 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/10">
-        <div className="flex flex-col items-center gap-6 p-8">
-          {/* Logo/Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg">
-              <BarChart3 className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-2xl font-bold text-foreground">DataViz Pro</h1>
-              <p className="text-sm text-muted-foreground">Analytics Platform</p>
-            </div>
-          </div>
-
-          {/* Loading Spinner */}
-          <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
-          
-          {/* Loading Text */}
-          <p className="text-muted-foreground">Initializing application...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-6 h-6 border-2 border-muted border-t-foreground rounded-full animate-spin" />
       </div>
     );
   }
