@@ -1,5 +1,4 @@
 import { getCellStyleFromRules, borderStyles, TableFormatting } from "@/lib/formatting";
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface TableData {
   headers: string[];
@@ -12,19 +11,16 @@ interface DashboardTableProps {
   loading?: boolean;
 }
 
-const TableSkeleton = () => (
-  <div className="w-full space-y-3">
-    <Skeleton className="w-full h-8" />
-    <Skeleton className="w-full h-6" />
-    <Skeleton className="w-5/6 h-6" />
-    <Skeleton className="w-4/5 h-6" />
-    <Skeleton className="w-3/4 h-6" />
-  </div>
-);
-
 export function DashboardTable({ data, loading = false }: DashboardTableProps) {
   if (loading || !data) {
-    return <TableSkeleton />;
+    return (
+      <div className="w-full h-32 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span>Loading table...</span>
+        </div>
+      </div>
+    );
   }
   
   const { headers, rows, formatting } = data;

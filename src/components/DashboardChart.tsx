@@ -1,5 +1,4 @@
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface ChartData {
   type: 'line' | 'bar' | 'pie' | 'area';
@@ -19,20 +18,16 @@ const CHART_COLORS = [
   'rgb(var(--chart-5))',
 ];
 
-const ChartSkeleton = () => (
-  <div className="w-full h-[200px] flex items-center justify-center">
-    <div className="w-full h-full space-y-4">
-      <Skeleton className="w-full h-4" />
-      <Skeleton className="w-full h-32" />
-      <Skeleton className="w-3/4 h-4" />
-      <Skeleton className="w-1/2 h-4" />
-    </div>
-  </div>
-);
-
 export function DashboardChart({ data, loading = false }: DashboardChartProps) {
   if (loading || !data) {
-    return <ChartSkeleton />;
+    return (
+      <div className="w-full h-[200px] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span>Loading chart...</span>
+        </div>
+      </div>
+    );
   }
   const renderChart = () => {
     const commonProps = {

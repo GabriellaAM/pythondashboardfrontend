@@ -10,7 +10,6 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -414,68 +413,13 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-48" />
-            <Skeleton className="h-5 w-64" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="text-center">
+            <p className="text-lg font-medium">Loading Dashboard</p>
+            <p className="text-muted-foreground">Please wait while we load your data...</p>
           </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-20" />
-          </div>
-        </div>
-
-        {/* Components Grid Skeleton */}
-        <div className="min-h-[400px] grid grid-cols-12 gap-4">
-          {/* Chart Component */}
-          <div className="col-span-6">
-            <div className="h-64 border rounded-lg p-4 space-y-4 bg-card">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-5 w-5" />
-              </div>
-              <div className="space-y-3">
-                <Skeleton className="w-full h-4" />
-                <Skeleton className="w-full h-32" />
-                <Skeleton className="w-3/4 h-4" />
-              </div>
-            </div>
-          </div>
-          
-          {/* Table Component */}
-          <div className="col-span-6">
-            <div className="h-64 border rounded-lg p-4 space-y-4 bg-card">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-5 w-5" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="w-full h-6" />
-                <Skeleton className="w-full h-5" />
-                <Skeleton className="w-5/6 h-5" />
-                <Skeleton className="w-4/5 h-5" />
-              </div>
-            </div>
-          </div>
-          
-          {/* KPI Components */}
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="col-span-3">
-              <div className="h-32 border rounded-lg p-4 space-y-3 bg-card">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-5 w-5" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     );
@@ -486,21 +430,12 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          {currentDashboard ? (
-            <>
-              <h1 className="text-3xl font-bold text-foreground">
-                {currentDashboard.name}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {currentDashboard.description || 'Visualize and analyze your data'}
-              </p>
-            </>
-          ) : (
-            <div className="space-y-2">
-              <Skeleton className="h-9 w-48" />
-              <Skeleton className="h-5 w-64" />
-            </div>
-          )}
+          <h1 className="text-3xl font-bold text-foreground">
+            {currentDashboard?.name || 'Dashboard'}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {currentDashboard?.description || 'Visualize and analyze your data'}
+          </p>
         </div>
         
         <div className="flex gap-2">

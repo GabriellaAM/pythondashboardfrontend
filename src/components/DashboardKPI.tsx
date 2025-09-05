@@ -1,6 +1,5 @@
 import { Target, TrendingUp, TrendingDown } from "lucide-react";
 import { KPITheme } from "@/lib/formatting";
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardKPIProps {
   data?: {
@@ -15,17 +14,16 @@ interface DashboardKPIProps {
   loading?: boolean;
 }
 
-const KPISkeleton = () => (
-  <div className="h-full flex flex-col justify-center p-4 space-y-3">
-    <Skeleton className="h-8 w-16" />
-    <Skeleton className="h-4 w-full" />
-    <Skeleton className="h-4 w-3/4" />
-  </div>
-);
-
 export function DashboardKPI({ data, loading = false }: DashboardKPIProps) {
   if (loading || !data) {
-    return <KPISkeleton />;
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
   }
   
   const getIconComponent = (iconName?: string) => {
