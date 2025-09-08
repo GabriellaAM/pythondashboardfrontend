@@ -10,6 +10,16 @@ interface Dashboard {
   updated_at: string;
 }
 
+interface SharedDashboard {
+  id: string;
+  name: string;
+  description?: string;
+  owner_id: string;
+  permissions: string[];
+  shared_at: string;
+  shared_by: string;
+}
+
 interface Component {
   id: string;
   dashboard_id: string;
@@ -178,7 +188,7 @@ class ApiClient {
   }
 
   async getSharedDashboards() {
-    return this.request<Dashboard[]>('/api/dashboards/shared-with-me');
+    return this.request<SharedDashboard[]>('/api/dashboards/shared-with-me');
   }
 
   async revokeUserAccess(dashboardId: string, userEmail: string) {

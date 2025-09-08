@@ -58,6 +58,16 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const [dashboardsOpen, setDashboardsOpen] = useState(true);
   const [dashboards, setDashboards] = useState<DashboardItem[]>([]);
+  const [sharedOpen, setSharedOpen] = useState(true);
+  const [sharedDashboards, setSharedDashboards] = useState<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    owner_id: string;
+    permissions: string[];
+    shared_at: string;
+    shared_by: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   // Sidebar rename editing state (activated by double-click or menu action)
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
@@ -81,6 +91,7 @@ export function AppSidebar() {
   // Load dashboards from API
   useEffect(() => {
     loadDashboards();
+    loadSharedDashboards();
   }, []);
 
   // Also listen for storage changes (auth token updates)
@@ -141,6 +152,55 @@ export function AppSidebar() {
       setLoading(false);
     }
   };
+
+  const loadSharedDashboards = async () => {
+    try {
+      // Dashboards shared with me
+      const sharedWithMe = await apiClient.getSharedDashboards();
+
+      // Dashboards I own that are shared with others
+      let sharedByMe: typeof sharedDashboards = [];
+      try {
+        if (dashboards.length > 0) {
+          const results = await Promise.allSettled(
+            dashboards.map(async (d) => {
+              const users = await apiClient.getDashboardSharedUsers(d.id);
+              return { dashboard: d, users };
+            })
+          );
+          sharedByMe = results
+            .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.users.length > 0)
+            .map(r => {
+              const { dashboard } = (r as PromiseFulfilledResult<any>).value;
+              return {
+                id: dashboard.id,
+                name: dashboard.name,
+                description: dashboard.description,
+                owner_id: (user?.id || '') as any,
+                permissions: ['edit'] as string[],
+                shared_at: new Date().toISOString(),
+                shared_by: 'You'
+              };
+            });
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Merge and deduplicate by id
+      const merged = [...(sharedWithMe || []), ...sharedByMe];
+      const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
+      setSharedDashboards(unique);
+    } catch (e) {
+      console.warn('Could not load shared dashboards:', e);
+    }
+  };
+
+  // Refresh shared dashboards when owned dashboards list changes (to compute "shared by me")
+  useEffect(() => {
+    loadSharedDashboards();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboards]);
 
   const createWelcomeDashboard = async () => {
     try {
@@ -478,6 +538,83 @@ export function AppSidebar() {
                       <span>New Dashboard</span>
                     </Button>
                   </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            )}
+          </SidebarGroup>
+        )}
+
+        {/* Shared Dashboards Section */}
+        {!collapsed && (
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              <button
+                onClick={() => setSharedOpen(!sharedOpen)}
+                className="flex items-center justify-between w-full text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              >
+                <span>Shared Dashboards</span>
+                <ChevronDown className={cn(
+                  "w-4 h-4 transition-transform",
+                  !sharedOpen && "-rotate-90"
+                )} />
+              </button>
+            </SidebarGroupLabel>
+            {sharedOpen && (
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {sharedDashboards.length === 0 ? (
+                    <SidebarMenuItem>
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
+                        <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full" />
+                        <span>No shared dashboards</span>
+                      </div>
+                    </SidebarMenuItem>
+                  ) : (
+                    sharedDashboards.map((dashboard) => (
+                      <SidebarMenuItem key={`shared-${dashboard.id}`}>
+                        <SidebarMenuButton asChild className="flex-1">
+                          <NavLink
+                            to={`/dashboard/${dashboard.id}`}
+                            onClick={() => setCurrentDashboard({
+                              id: dashboard.id,
+                              name: dashboard.name,
+                              description: dashboard.description,
+                              owner_id: dashboard.owner_id,
+                              created_at: new Date().toISOString(),
+                              updated_at: new Date().toISOString(),
+                            } as any)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1",
+                              isActive(`/dashboard/${dashboard.id}`)
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                            )}
+                            title={dashboard.name}
+                          >
+                            <div className="w-2 h-2 bg-chart-2 rounded-full" />
+                            <span className="truncate">{dashboard.name}</span>
+                            <span
+                              className={cn(
+                                "ml-auto text-[10px] px-1.5 py-0.5 rounded-full",
+                                (user && dashboard.owner_id === user.id)
+                                  ? "bg-blue-100 text-blue-700"
+                                  : (dashboard.permissions?.includes('edit')
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-gray-200 text-gray-700")
+                              )}
+                              title={(user && dashboard.owner_id === user.id)
+                                ? "Owner"
+                                : (dashboard.permissions?.includes('edit') ? "Can edit" : "View only")}
+                            >
+                              {(user && dashboard.owner_id === user.id)
+                                ? "Owner"
+                                : (dashboard.permissions?.includes('edit') ? "Edit" : "View")}
+                            </span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             )}
