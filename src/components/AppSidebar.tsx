@@ -91,8 +91,14 @@ export function AppSidebar() {
   // Load dashboards from API
   useEffect(() => {
     loadDashboards();
-    loadSharedDashboards();
   }, []);
+
+  // Load shared dashboards when user is available
+  useEffect(() => {
+    if (user) {
+      loadSharedDashboards();
+    }
+  }, [user]);
 
   // Also listen for storage changes (auth token updates)
   useEffect(() => {
@@ -107,13 +113,27 @@ export function AppSidebar() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Expose reload function globally for testing
+  // Expose reload functions globally for testing
   useEffect(() => {
     (window as any).reloadDashboards = loadDashboards;
+    (window as any).reloadSharedDashboards = loadSharedDashboards;
+    (window as any).debugSharedDashboards = async () => {
+      console.log('=== DEBUG SHARED DASHBOARDS ===');
+      console.log('Current user:', user);
+      console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
+      try {
+        const sharedWithMe = await apiClient.getSharedDashboards();
+        console.log('API Response - Dashboards shared with me:', sharedWithMe);
+      } catch (error) {
+        console.error('API Error - getSharedDashboards:', error);
+      }
+    };
     return () => {
       delete (window as any).reloadDashboards;
+      delete (window as any).reloadSharedDashboards;
+      delete (window as any).debugSharedDashboards;
     };
-  }, []);
+  }, [user]);
 
   // Listen for dashboard changes
   useEffect(() => {
@@ -122,8 +142,18 @@ export function AppSidebar() {
       loadDashboards();
     };
 
+    const handleSharedDashboardsChanged = () => {
+      console.log('Shared dashboards changed event received, reloading...');
+      loadSharedDashboards();
+    };
+
     window.addEventListener('dashboards-changed', handleDashboardsChanged);
-    return () => window.removeEventListener('dashboards-changed', handleDashboardsChanged);
+    window.addEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
+    
+    return () => {
+      window.removeEventListener('dashboards-changed', handleDashboardsChanged);
+      window.removeEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
+    };
   }, []);
 
   const loadDashboards = async () => {
@@ -155,13 +185,17 @@ export function AppSidebar() {
 
   const loadSharedDashboards = async () => {
     try {
+      console.log('Loading shared dashboards...');
+      
       // Dashboards shared with me
       const sharedWithMe = await apiClient.getSharedDashboards();
+      console.log('Dashboards shared with me:', sharedWithMe);
 
       // Dashboards I own that are shared with others
       let sharedByMe: typeof sharedDashboards = [];
       try {
         if (dashboards.length > 0) {
+          console.log('Checking dashboards I own for sharing:', dashboards.length);
           const results = await Promise.allSettled(
             dashboards.map(async (d) => {
               const users = await apiClient.getDashboardSharedUsers(d.id);
@@ -182,25 +216,29 @@ export function AppSidebar() {
                 shared_by: 'You'
               };
             });
+          console.log('Dashboards I shared with others:', sharedByMe);
         }
       } catch (e) {
-        // ignore
+        console.warn('Error loading dashboards I shared:', e);
       }
 
       // Merge and deduplicate by id
       const merged = [...(sharedWithMe || []), ...sharedByMe];
       const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
+      console.log('Final merged shared dashboards:', unique);
       setSharedDashboards(unique);
     } catch (e) {
-      console.warn('Could not load shared dashboards:', e);
+      console.error('Could not load shared dashboards:', e);
     }
   };
 
   // Refresh shared dashboards when owned dashboards list changes (to compute "shared by me")
   useEffect(() => {
-    loadSharedDashboards();
+    if (user && dashboards.length > 0) {
+      loadSharedDashboards();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboards]);
+  }, [dashboards.length, user]);
 
   const createWelcomeDashboard = async () => {
     try {

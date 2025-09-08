@@ -59,6 +59,14 @@ export function ShareDashboardModal({
       setEmail("");
       setPermission('view');
       
+      // Trigger refresh of shared dashboards in sidebar
+      if ((window as any).reloadSharedDashboards) {
+        (window as any).reloadSharedDashboards();
+      }
+      
+      // Dispatch custom event to notify sidebar to refresh
+      window.dispatchEvent(new CustomEvent('shared-dashboards-changed'));
+      
       // Close modal after 2 seconds
       setTimeout(() => {
         onClose();
