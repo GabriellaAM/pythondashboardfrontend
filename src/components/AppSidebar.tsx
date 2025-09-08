@@ -267,7 +267,7 @@ export function AppSidebar() {
         if (remainingDashboards.length > 0) {
           // Find a good candidate for redirection - prefer the next dashboard in the list
           const deletedIndex = dashboards.findIndex(d => d.id === dashboardId);
-          let nextDashboard = remainingDashboards[deletedIndex] || remainingDashboards[deletedIndex - 1] || remainingDashboards[0];
+          const nextDashboard = remainingDashboards[deletedIndex] || remainingDashboards[deletedIndex - 1] || remainingDashboards[0];
           
           // Update dashboard context before navigation
           if (nextDashboard) {

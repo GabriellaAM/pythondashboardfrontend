@@ -5,9 +5,10 @@ import { BarChart3 } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
+  headerActions?: ReactNode;
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, headerActions }: LayoutProps) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -26,6 +27,11 @@ export function Layout({ children }: LayoutProps) {
                 <h1 className="font-semibold text-foreground">DataViz Pro</h1>
               </div>
             </div>
+            {headerActions && (
+              <div className="flex items-center gap-2">
+                {headerActions}
+              </div>
+            )}
           </header>
           
           {/* Main Content */}

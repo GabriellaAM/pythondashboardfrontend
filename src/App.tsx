@@ -7,6 +7,7 @@ import { Layout } from "@/components/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import Dashboard from "@/pages/Dashboard";
+import DashboardPage from "@/pages/DashboardPage";
 import Settings from "@/pages/Settings";
 import Account from "@/pages/Account";
 import Login from "@/pages/Login";
@@ -48,6 +49,11 @@ const DashboardRoute = () => {
   return <Dashboard key={location.pathname} />;
 };
 
+const DashboardPageRoute = () => {
+  const location = useLocation();
+  return <DashboardPage key={location.pathname} />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -72,23 +78,17 @@ const App = () => (
             {/* Protected routes */}
             <Route path="/" element={
               <ProtectedRoute>
-                <Layout>
-                  <DashboardRoute />
-                </Layout>
+                <DashboardPageRoute />
               </ProtectedRoute>
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Layout>
-                  <DashboardRoute />
-                </Layout>
+                <DashboardPageRoute />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/:id" element={
               <ProtectedRoute>
-                <Layout>
-                  <DashboardRoute />
-                </Layout>
+                <DashboardPageRoute />
               </ProtectedRoute>
             } />
             {/* Public/Shared routes (no auth required) */}

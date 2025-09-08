@@ -1,6 +1,30 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-interface ApiResponse<T = any> {
+interface Dashboard {
+  id: string;
+  name: string;
+  description?: string;
+  is_public?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Component {
+  id: string;
+  dashboard_id: string;
+  name: string;
+  type: 'chart' | 'table' | 'kpi';
+  config?: Record<string, unknown>;
+  python_script?: string;
+  position_x?: number;
+  position_y?: number;
+  width?: number;
+  height?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
@@ -107,34 +131,34 @@ class ApiClient {
   }
 
   async getCurrentUser() {
-    return this.request<any>('/api/auth/me');
+    return this.request<{ id: string; email: string; full_name: string; created_at: string }>('/api/auth/me');
   }
 
   // Dashboards
   async getDashboards() {
-    return this.request<any[]>('/api/dashboards/');
+    return this.request<Dashboard[]>('/api/dashboards/');
   }
 
   async getDashboard(id: string) {
-    return this.request<any>(`/api/dashboards/${id}`);
+    return this.request<Dashboard>(`/api/dashboards/${id}`);
   }
 
   async createDashboard(data: { name: string; description?: string; is_public?: boolean }) {
-    return this.request<any>('/api/dashboards/', {
+    return this.request<Dashboard>('/api/dashboards/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateDashboard(id: string, data: { name?: string; description?: string; is_public?: boolean }) {
-    return this.request<any>(`/api/dashboards/${id}`, {
+    return this.request<Dashboard>(`/api/dashboards/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteDashboard(id: string) {
-    return this.request<any>(`/api/dashboards/${id}`, {
+    return this.request<{ message: string }>(`/api/dashboards/${id}`, {
       method: 'DELETE',
     });
   }
@@ -145,14 +169,36 @@ class ApiClient {
     });
   }
 
+  async shareDashboardWithUser(dashboardId: string, userEmail: string) {
+    return this.request<{ message: string }>(`/api/dashboards/${dashboardId}/share-with-user`, {
+      method: 'POST',
+      body: JSON.stringify({ email: userEmail }),
+    });
+  }
+
+  async getSharedDashboards() {
+    return this.request<Dashboard[]>('/api/dashboards/shared-with-me');
+  }
+
+  async revokeUserAccess(dashboardId: string, userEmail: string) {
+    return this.request<{ message: string }>(`/api/dashboards/${dashboardId}/revoke-access`, {
+      method: 'POST',
+      body: JSON.stringify({ email: userEmail }),
+    });
+  }
+
+  async getDashboardSharedUsers(dashboardId: string) {
+    return this.request<{ email: string; full_name: string; shared_at: string }[]>(`/api/dashboards/${dashboardId}/shared-users`);
+  }
+
   // Components
   async getDashboardComponents(dashboardId: string) {
-    return this.request<any[]>(`/api/components/dashboard/${dashboardId}`);
+    return this.request<Component[]>(`/api/components/dashboard/${dashboardId}`);
   }
 
   // Public/Shared components (no auth)
   async getPublicDashboardComponents(dashboardId: string) {
-    return this.request<any[]>(`/api/components/public/dashboard/${dashboardId}`);
+    return this.request<Component[]>(`/api/components/public/dashboard/${dashboardId}`);
   }
 
   async getSharedDashboardByToken(shareToken: string) {
