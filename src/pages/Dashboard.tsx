@@ -19,6 +19,9 @@ import {
 import { ChartModal } from "@/components/ChartModal";
 import { TableModal } from "@/components/TableModal";
 import { KPIModal } from "@/components/KPIModal";
+import { WelcomeDashboard } from "@/components/WelcomeDashboard";
+import { NotionEditableText } from "@/components/NotionEditableText";
+import { AddSectionButton, EditableSection } from "@/components/AddSectionButton";
 import { DashboardChart } from "@/components/DashboardChart";
 import { DashboardTable } from "@/components/DashboardTable";
 import { DashboardKPI } from "@/components/DashboardKPI";
@@ -46,19 +49,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [componentLoading, setComponentLoading] = useState<Set<string>>(new Set());
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
-  const { currentDashboard, setCurrentDashboard } = useDashboard();
+  const [showWelcome, setShowWelcome] = useState(false);
+  const { currentDashboard, setCurrentDashboard, refreshDashboards } = useDashboard();
   const { isAuthenticated } = useAuth();
 
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isKPIModalOpen, setIsKPIModalOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<ComponentItem | null>(null);
+  const [sections, setSections] = useState<Array<{ id: string; title: string; type: 'header' | 'subheader' | 'text' | 'description'; backendId?: string }>>([]);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Initialize dashboard selection when authenticated or when in public/share route
   useEffect(() => {
     const initializeApp = async () => {
       const isShare = location.pathname.startsWith('/share/');
       const isPublic = location.pathname.startsWith('/public/');
+      setIsReadOnly(isShare || isPublic);
       if (!isAuthenticated && !isShare && !isPublic) return;
 
       // Set dashboard ID
@@ -72,9 +79,19 @@ export default function Dashboard() {
             console.log('Using first available dashboard:', dashId);
             // Update URL to reflect the dashboard being viewed
             window.history.replaceState({}, '', `/dashboard/${dashId}`);
+            setShowWelcome(false);
+          } else {
+            // No dashboards found - show welcome screen
+            console.log('No dashboards found, showing welcome screen');
+            setShowWelcome(true);
+            setLoading(false);
+            return;
           }
         } catch (error) {
           console.warn('Could not load dashboards:', error);
+          setShowWelcome(true);
+          setLoading(false);
+          return;
         }
       }
 
@@ -165,6 +182,25 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Failed to load components from backend:', error);
         setComponents([]);
+      }
+
+      // Load content blocks when authenticated (owner or shared). Public/share routes may need a public blocks route if enabled.
+      try {
+        if (!isPublic && currentDashboardId) {
+          const blocks = await apiClient.getDashboardBlocks(currentDashboardId);
+          if (idBeingLoaded === currentDashboardId) {
+            const mappedSections = blocks
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(b => ({ id: b.id, backendId: b.id, title: b.content, type: b.type } as { id: string; backendId: string; title: string; type: 'header' | 'subheader' | 'text' | 'description' }));
+            setSections(mappedSections);
+          }
+        } else {
+          setSections([]);
+        }
+      } catch (error) {
+        // If 403, user is likely view-only (shared). Keep read-only mode.
+        console.warn('Failed to load blocks or no access:', error);
+        setSections([]);
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -346,6 +382,119 @@ export default function Dashboard() {
     setComponents(prev => prev.filter(c => c.id !== id));
   };
 
+  const handleWelcomeDashboardCreated = (dashboardId: string) => {
+    setCurrentDashboardId(dashboardId);
+    setShowWelcome(false);
+    // Update URL to show the new dashboard
+    window.history.replaceState({}, '', `/dashboard/${dashboardId}`);
+  };
+
+  const handleAddSection = async (title: string, type: 'header' | 'subheader' | 'text' | 'description') => {
+    if (isReadOnly) {
+      toast({ title: 'Read-only', description: 'You do not have permission to edit this dashboard.' });
+      return;
+    }
+    try {
+      if (!currentDashboardId) return;
+      const nextOrder = sections.length;
+      const created = await apiClient.createDashboardBlock(currentDashboardId, { type, content: title || '', order_index: nextOrder });
+      setSections(prev => [...prev, { id: created.id, backendId: created.id, title, type }]);
+    } catch (e: any) {
+      console.error('Failed to add section:', e);
+      if (e.status === 403) {
+        setIsReadOnly(true);
+        toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
+      } else {
+        toast({ title: 'Error', description: e?.message || 'Failed to add section', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleUpdateSection = async (id: string, title: string) => {
+    if (isReadOnly) return;
+    try {
+      const section = sections.find(s => s.id === id);
+      if (!section || !currentDashboardId) return;
+      await apiClient.updateDashboardBlock(currentDashboardId, section.backendId || id, { content: title });
+      setSections(prev => prev.map(s => s.id === id ? { ...s, title } : s));
+    } catch (e: any) {
+      if (e.status === 403) {
+        setIsReadOnly(true);
+        toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
+      } else {
+        toast({ title: 'Error', description: 'Failed to update section', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleDeleteSection = async (id: string) => {
+    if (isReadOnly) return;
+    try {
+      const section = sections.find(s => s.id === id);
+      if (!section || !currentDashboardId) return;
+      await apiClient.deleteDashboardBlock(currentDashboardId, section.backendId || id);
+      setSections(prev => prev.filter(s => s.id !== id));
+    } catch (e: any) {
+      if (e.status === 403) {
+        setIsReadOnly(true);
+        toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
+      } else {
+        toast({ title: 'Error', description: 'Failed to delete section', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleUpdateDashboardName = async (newName: string) => {
+    if (!currentDashboardId || !currentDashboard) return;
+    
+    try {
+      const updatedDashboard = await apiClient.updateDashboard(currentDashboardId, {
+        name: newName || 'Untitled Dashboard'
+      });
+      
+      // Update local state
+      setCurrentDashboard({
+        ...currentDashboard,
+        name: newName || 'Untitled Dashboard'
+      });
+
+      // Update sidebar
+      refreshDashboards();
+      
+    } catch (error) {
+      console.error('Failed to update dashboard name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update dashboard name",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateDashboardDescription = async (newDescription: string) => {
+    if (!currentDashboardId || !currentDashboard) return;
+    
+    try {
+      const updatedDashboard = await apiClient.updateDashboard(currentDashboardId, {
+        description: newDescription
+      });
+      
+      // Update local state
+      setCurrentDashboard({
+        ...currentDashboard,
+        description: newDescription
+      });
+      
+    } catch (error) {
+      console.error('Failed to update dashboard description:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update dashboard description",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleSaveComponent = async (component: Omit<ComponentItem, 'id'>) => {
     try {
       if (editingComponent) {
@@ -422,17 +571,52 @@ export default function Dashboard() {
     );
   }
 
+  // Show welcome screen for new users
+  if (showWelcome) {
+    return <WelcomeDashboard onDashboardCreated={handleWelcomeDashboardCreated} />;
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            {currentDashboard?.name || 'Dashboard'}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {currentDashboard?.description || 'Visualize and analyze your data'}
-          </p>
+      <div className="flex items-start justify-between">
+        <div className="group flex-1 max-w-3xl space-y-4">
+          {/* Editable Title */}
+          <NotionEditableText
+            value={currentDashboard?.name || ''}
+            onChange={handleUpdateDashboardName}
+            placeholder="Untitled Dashboard"
+            className="text-3xl font-bold text-foreground leading-tight"
+            maxLength={100}
+          />
+          
+          {/* Default Description (disappears when empty) */}
+          <NotionEditableText
+            value={currentDashboard?.description || ''}
+            onChange={handleUpdateDashboardDescription}
+            placeholder="Add a description..."
+            className="text-muted-foreground text-base leading-relaxed"
+            multiline={true}
+            maxLength={500}
+            showPlaceholderText={false}
+          />
+
+          {/* Editable Sections */}
+          {sections.length > 0 && (
+            <div className="space-y-2">
+              {sections.map(section => (
+                <EditableSection
+                  key={section.id}
+                  section={section}
+                  onUpdate={handleUpdateSection}
+                  onDelete={handleDeleteSection}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Add Section Button (visible on hover) */}
+          {!isReadOnly && <AddSectionButton onAddSection={handleAddSection} />}
         </div>
         
         <div className="flex gap-2">

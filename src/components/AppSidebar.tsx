@@ -15,6 +15,7 @@ import datavizLogo from "@/assets/datavizlogo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { apiClient } from "@/lib/api";
+import { NotionEditableText } from "./NotionEditableText";
 import { toast } from "@/hooks/use-toast";
 import {
   Sidebar,
@@ -58,6 +59,7 @@ export function AppSidebar() {
   const [dashboardsOpen, setDashboardsOpen] = useState(true);
   const [dashboards, setDashboards] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // Sidebar rename editing state (activated by double-click or menu action)
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; dashboard: DashboardItem | null }>({
@@ -100,6 +102,17 @@ export function AppSidebar() {
     return () => {
       delete (window as any).reloadDashboards;
     };
+  }, []);
+
+  // Listen for dashboard changes
+  useEffect(() => {
+    const handleDashboardsChanged = () => {
+      console.log('Dashboards changed event received, reloading...');
+      loadDashboards();
+    };
+
+    window.addEventListener('dashboards-changed', handleDashboardsChanged);
+    return () => window.removeEventListener('dashboards-changed', handleDashboardsChanged);
   }, []);
 
   const loadDashboards = async () => {
@@ -296,51 +309,14 @@ export function AppSidebar() {
     setDeleteModal({ open: false, dashboard: null });
   };
 
-  const handleStartRename = (dashboardId: string, currentName: string) => {
-    setEditingDashboard(dashboardId);
-    setEditingName(currentName);
-  };
-
-  const handleCancelRename = () => {
-    setEditingDashboard(null);
-    setEditingName('');
-  };
-
-  const handleSaveRename = async (dashboardId: string) => {
+  const handleQuickRename = async (dashboardId: string, newName: string) => {
     try {
-      if (!editingName.trim()) {
-        toast({
-          title: "Error",
-          description: "Dashboard name cannot be empty",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log(`Renaming dashboard ${dashboardId} to "${editingName}"`);
-      
-      await apiClient.updateDashboard(dashboardId, {
-        name: editingName.trim()
-      });
-      
-      // Update local state
-      setDashboards(prev => prev.map(d => 
-        d.id === dashboardId 
-          ? { ...d, name: editingName.trim() }
-          : d
-      ));
-      
-      // Update dashboard context
-      updateDashboardName(dashboardId, editingName.trim());
-      
-      setEditingDashboard(null);
-      setEditingName('');
-      
-      toast({
-        title: "Dashboard Renamed",
-        description: `Dashboard renamed to "${editingName.trim()}" successfully.`,
-      });
-      
+      const finalName = newName.trim() || 'Untitled Dashboard';
+      await apiClient.updateDashboard(dashboardId, { name: finalName });
+      // Update local list
+      setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, name: finalName } : d));
+      // Update context if this dashboard is active
+      updateDashboardName(dashboardId, finalName);
     } catch (error: any) {
       console.error('Failed to rename dashboard:', error);
       toast({
@@ -351,12 +327,15 @@ export function AppSidebar() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent, dashboardId: string) => {
-    if (e.key === 'Enter') {
-      handleSaveRename(dashboardId);
-    } else if (e.key === 'Escape') {
-      handleCancelRename();
-    }
+  const startRename = (dashboardId: string, currentName: string) => {
+    setEditingDashboard(dashboardId);
+    setEditingName(currentName);
+  };
+
+  const saveRenameAndExit = async (dashboardId: string, newName: string) => {
+    await handleQuickRename(dashboardId, newName);
+    setEditingDashboard(null);
+    setEditingName('');
   };
 
   return (
@@ -422,70 +401,67 @@ export function AppSidebar() {
                       <SidebarMenuItem key={dashboard.id}>
                         <div className="flex items-center justify-between w-full group">
                           {editingDashboard === dashboard.id ? (
-                            // Editing mode
                             <div className="flex items-center gap-2 flex-1 px-3 py-2">
                               <div className="w-2 h-2 bg-chart-1 rounded-full" />
-                              <input
-                                type="text"
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                onKeyDown={(e) => handleKeyPress(e, dashboard.id)}
-                                onBlur={() => handleSaveRename(dashboard.id)}
-                                className="flex-1 bg-transparent border-b border-sidebar-accent text-sidebar-foreground text-sm focus:outline-none focus:border-sidebar-accent-foreground"
-                                autoFocus
-                              />
+                              <div className="flex-1 min-w-0">
+                                <NotionEditableText
+                                  value={editingName}
+                                  onChange={(val) => saveRenameAndExit(dashboard.id, val)}
+                                  placeholder="Untitled Dashboard"
+                                  className="truncate text-left"
+                                  maxLength={100}
+                                  autoSave={false}
+                                />
+                              </div>
                             </div>
                           ) : (
-                            // Normal mode
-                            <>
-                              <SidebarMenuButton asChild className="flex-1">
-                                <NavLink
-                                  to={`/dashboard/${dashboard.id}`}
-                                  onClick={() => setCurrentDashboard(dashboard)}
-                                  className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1",
-                                    isActive(`/dashboard/${dashboard.id}`)
-                                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-                                  )}
-                                >
-                                  <div className="w-2 h-2 bg-chart-1 rounded-full" />
-                                  <span className="truncate">{dashboard.name}</span>
-                                </NavLink>
-                              </SidebarMenuButton>
-                              
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <MoreHorizontal className="h-3 w-3" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-32">
-                                  <DropdownMenuItem
-                                    onClick={() => handleStartRename(dashboard.id, dashboard.name)}
-                                  >
-                                    <Edit className="h-3 w-3 mr-2" />
-                                    Rename
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleDeleteDashboard(dashboard.id, dashboard.name)}
-                                    disabled={dashboards.length <= 1}
-                                    className={cn(
-                                      "text-destructive focus:text-destructive",
-                                      dashboards.length <= 1 && "opacity-50 cursor-not-allowed"
-                                    )}
-                                  >
-                                    <Trash2 className="h-3 w-3 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </>
+                            <SidebarMenuButton asChild className="flex-1">
+                              <NavLink
+                                to={`/dashboard/${dashboard.id}`}
+                                onClick={() => setCurrentDashboard(dashboard)}
+                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(dashboard.id, dashboard.name); }}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1 cursor-pointer",
+                                  isActive(`/dashboard/${dashboard.id}`)
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                                )}
+                                title={dashboard.name}
+                              >
+                                <div className="w-2 h-2 bg-chart-1 rounded-full" />
+                                <span className="truncate">{dashboard.name}</span>
+                              </NavLink>
+                            </SidebarMenuButton>
                           )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreHorizontal className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => startRename(dashboard.id, dashboard.name)}>
+                                <Edit className="h-3 w-3 mr-2" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteDashboard(dashboard.id, dashboard.name)}
+                                disabled={dashboards.length <= 1}
+                                className={cn(
+                                  "text-destructive focus:text-destructive",
+                                  dashboards.length <= 1 && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                <Trash2 className="h-3 w-3 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </SidebarMenuItem>
                     ))

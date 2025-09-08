@@ -31,6 +31,7 @@ export function ShareDashboardModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [permission, setPermission] = useState<'view' | 'edit'>('view');
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,9 +54,10 @@ export function ShareDashboardModal({
     setSuccess("");
 
     try {
-      await apiClient.shareDashboardWithUser(dashboardId, email.trim());
+      await apiClient.shareDashboardWithUser(dashboardId, email.trim(), permission);
       setSuccess(`Dashboard shared successfully with ${email}`);
       setEmail("");
+      setPermission('view');
       
       // Close modal after 2 seconds
       setTimeout(() => {
@@ -78,6 +80,7 @@ export function ShareDashboardModal({
 
   const handleClose = () => {
     setEmail("");
+    setPermission('view');
     setError("");
     setSuccess("");
     onClose();
@@ -118,6 +121,31 @@ export function ShareDashboardModal({
             </div>
             <p className="text-sm text-muted-foreground">
               The user must have an existing account to receive access
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="permission">Permission</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={permission === 'view' ? 'default' : 'outline'}
+                onClick={() => setPermission('view')}
+                disabled={isLoading}
+              >
+                View only
+              </Button>
+              <Button
+                type="button"
+                variant={permission === 'edit' ? 'default' : 'outline'}
+                onClick={() => setPermission('edit')}
+                disabled={isLoading}
+              >
+                Can edit
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              "View only": cannot create/edit/delete. "Can edit": full editing access.
             </p>
           </div>
 

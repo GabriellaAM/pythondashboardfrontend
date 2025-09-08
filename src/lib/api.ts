@@ -5,6 +5,7 @@ interface Dashboard {
   name: string;
   description?: string;
   is_public?: boolean;
+  owner_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -169,10 +170,10 @@ class ApiClient {
     });
   }
 
-  async shareDashboardWithUser(dashboardId: string, userEmail: string) {
+  async shareDashboardWithUser(dashboardId: string, userEmail: string, permission: 'view' | 'edit' = 'view') {
     return this.request<{ message: string }>(`/api/dashboards/${dashboardId}/share-with-user`, {
       method: 'POST',
-      body: JSON.stringify({ email: userEmail }),
+      body: JSON.stringify({ email: userEmail, permissions: [permission] }),
     });
   }
 
@@ -189,6 +190,53 @@ class ApiClient {
 
   async getDashboardSharedUsers(dashboardId: string) {
     return this.request<{ email: string; full_name: string; shared_at: string }[]>(`/api/dashboards/${dashboardId}/shared-users`);
+  }
+
+  // Dashboard Blocks
+  async getDashboardBlocks(dashboardId: string) {
+    return this.request<Array<{
+      id: string;
+      dashboard_id: string;
+      type: 'header' | 'subheader' | 'text' | 'description';
+      content: string;
+      order_index: number;
+      created_at: string;
+      updated_at: string;
+    }>>(`/api/dashboards/${dashboardId}/blocks`);
+  }
+
+  async createDashboardBlock(dashboardId: string, data: {
+    type: 'header' | 'subheader' | 'text' | 'description';
+    content: string;
+    order_index?: number;
+  }) {
+    return this.request<any>(`/api/dashboards/${dashboardId}/blocks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDashboardBlock(dashboardId: string, blockId: string, data: {
+    type?: 'header' | 'subheader' | 'text' | 'description';
+    content?: string;
+  }) {
+    return this.request<any>(`/api/dashboards/${dashboardId}/blocks/${blockId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async reorderDashboardBlocks(dashboardId: string, blocks: Array<{ id: string; order_index: number }>) {
+    return this.request<{ message: string }>(`/api/dashboards/${dashboardId}/blocks/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ blocks }),
+    });
+  }
+
+  async deleteDashboardBlock(dashboardId: string, blockId: string) {
+    return this.request<{ message: string }>(`/api/dashboards/${dashboardId}/blocks/${blockId}`, {
+      method: 'DELETE',
+    });
   }
 
   // Components
