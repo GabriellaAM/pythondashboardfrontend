@@ -188,7 +188,25 @@ class ApiClient {
   }
 
   async getSharedDashboards() {
-    return this.request<SharedDashboard[]>('/api/dashboards/shared-with-me');
+    try {
+      return this.request<SharedDashboard[]>('/api/dashboards/shared-with-me');
+    } catch (error: any) {
+      console.warn('Primary shared dashboards endpoint failed, trying alternatives...', error);
+      
+      // Try alternative endpoint if the primary fails
+      try {
+        // Some backends might have different endpoint naming
+        const altResponse = await this.request<SharedDashboard[]>('/api/dashboards/shared');
+        console.log('Alternative endpoint worked:', altResponse);
+        return altResponse;
+      } catch (altError) {
+        console.warn('Alternative endpoint also failed:', altError);
+        
+        // Return empty array as fallback
+        console.log('Returning empty array as fallback for shared dashboards');
+        return [];
+      }
+    }
   }
 
   async revokeUserAccess(dashboardId: string, userEmail: string) {

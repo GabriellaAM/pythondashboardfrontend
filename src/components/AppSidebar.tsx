@@ -121,11 +121,56 @@ export function AppSidebar() {
       console.log('=== DEBUG SHARED DASHBOARDS ===');
       console.log('Current user:', user);
       console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
+      console.log('API Base URL:', import.meta.env.VITE_API_URL || 'default');
+      
+      // Test the specific endpoint
       try {
+        console.log('Testing /api/dashboards/shared-with-me endpoint...');
         const sharedWithMe = await apiClient.getSharedDashboards();
-        console.log('API Response - Dashboards shared with me:', sharedWithMe);
-      } catch (error) {
-        console.error('API Error - getSharedDashboards:', error);
+        console.log('✅ API Response - Dashboards shared with me:', sharedWithMe);
+      } catch (error: any) {
+        console.error('❌ API Error - getSharedDashboards:', {
+          status: error.status,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      
+      // Test if regular dashboards endpoint works
+      try {
+        console.log('Testing /api/dashboards/ endpoint...');
+        const regularDashboards = await apiClient.getDashboards();
+        console.log('✅ Regular dashboards work:', regularDashboards?.length || 0, 'dashboards');
+      } catch (error: any) {
+        console.error('❌ Regular dashboards also failing:', error);
+      }
+      
+      // Test raw fetch to the endpoint
+      try {
+        console.log('Testing raw fetch to shared-with-me...');
+        const token = localStorage.getItem('auth_token');
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${baseUrl}/api/dashboards/shared-with-me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Raw fetch response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Raw fetch data:', data);
+        } else {
+          const errorText = await response.text();
+          console.log('❌ Raw fetch error text:', errorText);
+        }
+      } catch (fetchError) {
+        console.error('❌ Raw fetch failed:', fetchError);
       }
     };
     return () => {
@@ -186,10 +231,30 @@ export function AppSidebar() {
   const loadSharedDashboards = async () => {
     try {
       console.log('Loading shared dashboards...');
+      console.log('Current user:', user);
+      console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
       
       // Dashboards shared with me
-      const sharedWithMe = await apiClient.getSharedDashboards();
-      console.log('Dashboards shared with me:', sharedWithMe);
+      let sharedWithMe: typeof sharedDashboards = [];
+      try {
+        console.log('Fetching dashboards shared with me...');
+        sharedWithMe = await apiClient.getSharedDashboards();
+        console.log('Dashboards shared with me:', sharedWithMe);
+      } catch (sharedError: any) {
+        console.error('Error fetching shared-with-me dashboards:', {
+          status: sharedError.status,
+          message: sharedError.message,
+          stack: sharedError.stack
+        });
+        
+        // If it's a server error (500), try to continue with empty array
+        if (sharedError.status === 500) {
+          console.warn('Server error 500 detected, continuing with empty shared dashboards');
+          sharedWithMe = [];
+        } else {
+          throw sharedError; // Re-throw if it's not a 500 error
+        }
+      }
 
       // Dashboards I own that are shared with others
       let sharedByMe: typeof sharedDashboards = [];
@@ -198,8 +263,13 @@ export function AppSidebar() {
           console.log('Checking dashboards I own for sharing:', dashboards.length);
           const results = await Promise.allSettled(
             dashboards.map(async (d) => {
-              const users = await apiClient.getDashboardSharedUsers(d.id);
-              return { dashboard: d, users };
+              try {
+                const users = await apiClient.getDashboardSharedUsers(d.id);
+                return { dashboard: d, users };
+              } catch (error: any) {
+                console.warn(`Failed to get shared users for dashboard ${d.id}:`, error);
+                return { dashboard: d, users: [] };
+              }
             })
           );
           sharedByMe = results
@@ -227,8 +297,21 @@ export function AppSidebar() {
       const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
       console.log('Final merged shared dashboards:', unique);
       setSharedDashboards(unique);
-    } catch (e) {
-      console.error('Could not load shared dashboards:', e);
+      
+      // Show success message if we have shared dashboards
+      if (unique.length > 0) {
+        console.log(`✅ Successfully loaded ${unique.length} shared dashboard(s)`);
+      }
+      
+    } catch (e: any) {
+      console.error('Could not load shared dashboards:', {
+        error: e,
+        status: e.status,
+        message: e.message
+      });
+      
+      // Set empty array as fallback
+      setSharedDashboards([]);
     }
   };
 
