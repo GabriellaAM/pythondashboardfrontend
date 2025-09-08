@@ -11,6 +11,7 @@ import {
   Edit
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import datavizLogo from "@/assets/datavizlogo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { apiClient } from "@/lib/api";
@@ -367,8 +368,12 @@ export function AppSidebar() {
         {/* Header */}
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <BarChart3 className="w-4 h-4 text-primary-foreground" />
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
+              <img 
+                src={datavizLogo} 
+                alt="DataViz Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             {!collapsed && (
               <div>
