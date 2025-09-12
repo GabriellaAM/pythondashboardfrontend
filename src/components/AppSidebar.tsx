@@ -172,6 +172,29 @@ export function AppSidebar() {
       } catch (fetchError) {
         console.error('❌ Raw fetch failed:', fetchError);
       }
+      
+      // Test if we can see who has access to our dashboards
+      if (dashboards.length > 0) {
+        console.log('Testing dashboard sharing status for owned dashboards...');
+        for (const dashboard of dashboards) {
+          try {
+            console.log(`Checking shared users for dashboard "${dashboard.name}" (${dashboard.id})`);
+            const users = await apiClient.getDashboardSharedUsers(dashboard.id);
+            console.log(`Dashboard "${dashboard.name}" is shared with:`, users);
+          } catch (error: any) {
+            console.error(`Failed to get shared users for "${dashboard.name}":`, error);
+          }
+        }
+      }
+      
+      // Test the alternative method
+      try {
+        console.log('Testing alternative shared dashboards method...');
+        const altSharedDashboards = await apiClient.getAllDashboardsWithSharedInfo();
+        console.log('Alternative method result:', altSharedDashboards);
+      } catch (altError) {
+        console.error('Alternative method failed:', altError);
+      }
     };
     return () => {
       delete (window as any).reloadDashboards;

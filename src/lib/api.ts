@@ -202,9 +202,18 @@ class ApiClient {
       } catch (altError) {
         console.warn('Alternative endpoint also failed:', altError);
         
-        // Return empty array as fallback
-        console.log('Returning empty array as fallback for shared dashboards');
-        return [];
+        // Try the method that checks all dashboards for shared ones
+        try {
+          console.log('Trying getAllDashboardsWithSharedInfo as final fallback...');
+          const sharedFromAll = await this.getAllDashboardsWithSharedInfo();
+          console.log('Found shared dashboards via alternative method:', sharedFromAll);
+          return sharedFromAll;
+        } catch (finalError) {
+          console.warn('All methods failed:', finalError);
+          // Return empty array as final fallback
+          console.log('Returning empty array as final fallback for shared dashboards');
+          return [];
+        }
       }
     }
   }
@@ -218,6 +227,44 @@ class ApiClient {
 
   async getDashboardSharedUsers(dashboardId: string) {
     return this.request<{ email: string; full_name: string; shared_at: string }[]>(`/api/dashboards/${dashboardId}/shared-users`);
+  }
+
+  // Alternative method to get shared dashboards by checking all dashboards
+  async getAllDashboardsWithSharedInfo() {
+    try {
+      const allDashboards = await this.getDashboards();
+      const dashboardsWithSharing = await Promise.allSettled(
+        allDashboards.map(async (dashboard) => {
+          try {
+            // Check if this dashboard is shared with me (by checking if I'm not the owner but have access)
+            const currentUser = await this.getCurrentUser();
+            if (dashboard.owner_id !== currentUser.id) {
+              // This dashboard is owned by someone else, so it's shared with me
+              return {
+                ...dashboard,
+                isSharedWithMe: true,
+                owner_id: dashboard.owner_id,
+                permissions: ['view'], // Default to view permission
+                shared_at: new Date().toISOString(),
+                shared_by: 'Unknown'
+              };
+            }
+            return null;
+          } catch (error) {
+            return null;
+          }
+        })
+      );
+
+      const sharedDashboards = dashboardsWithSharing
+        .filter(result => result.status === 'fulfilled' && result.value !== null)
+        .map(result => (result as PromiseFulfilledResult<any>).value);
+
+      return sharedDashboards;
+    } catch (error) {
+      console.error('Failed to get dashboards with shared info:', error);
+      return [];
+    }
   }
 
   // Dashboard Blocks
