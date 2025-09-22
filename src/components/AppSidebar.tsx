@@ -243,6 +243,14 @@ export function AppSidebar() {
       console.log('Current user:', user);
       console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
 
+      // Wait a bit to ensure auth token is set (avoid early 401)
+      let attempts = 0;
+      while (!localStorage.getItem('auth_token') && attempts < 10) {
+        console.log('Waiting for auth token for shared dashboards...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+
       // Load dashboards shared WITH me
       console.log('Fetching dashboards shared with me...');
       const sharedWithMe = await apiClient.getSharedDashboards();
@@ -287,13 +295,13 @@ export function AppSidebar() {
     }
   };
 
-  // Load shared dashboards when user and dashboards are available
+  // Load shared dashboards when user is available (even if no own dashboards)
   useEffect(() => {
-    if (user && dashboards.length > 0) {
+    if (user) {
       loadSharedDashboards();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboards.length, user]);
+  }, [user, dashboards.length]);
 
   const createWelcomeDashboard = async () => {
     try {
