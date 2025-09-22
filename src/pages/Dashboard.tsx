@@ -71,13 +71,15 @@ export default function Dashboard() {
 
       // Set dashboard ID
       let dashId = dashboardId;
-      if (!dashId && !isShare) {
-        // Only search for a dashboard if we don't already have currentDashboardId set
-        if (currentDashboardId) {
-          console.log('Already have dashboard ID:', currentDashboardId);
-          return;
-        }
 
+      // If we have a dashboard ID from URL, use it directly
+      if (dashId) {
+        setCurrentDashboardId(dashId);
+        return;
+      }
+
+      // Only search for a dashboard if we're at the root dashboard route
+      if (!isShare && location.pathname === '/dashboard') {
         // If no dashboard ID in URL, get first accessible dashboard from API
         try {
           const dashboards = await apiClient.getDashboards();
@@ -104,7 +106,6 @@ export default function Dashboard() {
               // Update URL to reflect the dashboard being viewed using React Router
               navigate(`/dashboard/${dashId}`, { replace: true });
               setShowWelcome(false);
-              // Don't set currentDashboardId here - let the URL change trigger it
               return;
             } else {
               // No accessible dashboards found - show welcome screen
@@ -127,12 +128,10 @@ export default function Dashboard() {
           return;
         }
       }
-
-      setCurrentDashboardId(dashId);
     };
 
     initializeApp();
-  }, [dashboardId, isAuthenticated, location.pathname]);
+  }, [dashboardId, isAuthenticated, location.pathname, navigate]);
   
   // Load dashboard data when route context changes
   useEffect(() => {
