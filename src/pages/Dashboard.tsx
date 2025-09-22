@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Plus, MoreVertical, BarChart3, Table, Target } from "lucide-react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "@/lib/api";
@@ -60,17 +60,10 @@ export default function Dashboard() {
   const [editingComponent, setEditingComponent] = useState<ComponentItem | null>(null);
   const [sections, setSections] = useState<Array<{ id: string; title: string; type: 'header' | 'subheader' | 'text' | 'description'; backendId?: string }>>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const programmaticNavigationRef = useRef(false);
 
   // Initialize dashboard selection when authenticated or when in public/share route
   useEffect(() => {
     const initializeApp = async () => {
-      // Skip if this is a programmatic navigation we initiated
-      if (programmaticNavigationRef.current) {
-        programmaticNavigationRef.current = false;
-        return;
-      }
-
       const isShare = location.pathname.startsWith('/share/');
       const isPublic = location.pathname.startsWith('/public/');
       setIsReadOnly(isShare || isPublic);
@@ -79,6 +72,12 @@ export default function Dashboard() {
       // Set dashboard ID
       let dashId = dashboardId;
       if (!dashId && !isShare) {
+        // Only search for a dashboard if we don't already have currentDashboardId set
+        if (currentDashboardId) {
+          console.log('Already have dashboard ID:', currentDashboardId);
+          return;
+        }
+
         // If no dashboard ID in URL, get first accessible dashboard from API
         try {
           const dashboards = await apiClient.getDashboards();
@@ -103,9 +102,10 @@ export default function Dashboard() {
               dashId = accessibleDashboard.id;
               console.log('Using first accessible dashboard:', dashId);
               // Update URL to reflect the dashboard being viewed using React Router
-              programmaticNavigationRef.current = true;
               navigate(`/dashboard/${dashId}`, { replace: true });
               setShowWelcome(false);
+              // Don't set currentDashboardId here - let the URL change trigger it
+              return;
             } else {
               // No accessible dashboards found - show welcome screen
               console.log('No accessible dashboards found, showing welcome screen');
@@ -424,7 +424,6 @@ export default function Dashboard() {
     setCurrentDashboardId(dashboardId);
     setShowWelcome(false);
     // Update URL to show the new dashboard using React Router
-    programmaticNavigationRef.current = true;
     navigate(`/dashboard/${dashboardId}`, { replace: true });
   };
 
