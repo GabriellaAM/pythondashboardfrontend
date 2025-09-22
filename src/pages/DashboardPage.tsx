@@ -14,10 +14,11 @@ export default function DashboardPage() {
 
   const headerActions = (
     <>
-      <Button 
-        onClick={() => setIsShareModalOpen(true)} 
-        variant="outline" 
+      <Button
+        onClick={() => setIsShareModalOpen(true)}
+        variant="outline"
         className="gap-2"
+        disabled={!dashboardId}
       >
         <Share className="w-4 h-4" />
         Share
@@ -31,12 +32,14 @@ export default function DashboardPage() {
         <Dashboard />
       </Layout>
       
-      <ShareDashboardModal
-        open={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        dashboardId={dashboardId || ''}
-        dashboardName={currentDashboard?.name || 'Dashboard'}
-      />
+      {dashboardId && (
+        <ShareDashboardModal
+          open={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          dashboardId={dashboardId}
+          dashboardName={currentDashboard?.name || 'Dashboard'}
+        />
+      )}
     </>
   );
 }

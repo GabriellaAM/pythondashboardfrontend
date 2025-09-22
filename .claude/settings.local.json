@@ -19,7 +19,8 @@
       "Bash(npm run dev:*)",
       "Bash(npm install)",
       "Bash(curl:*)",
-      "Bash(\"venv/Scripts/python.exe\" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000)"
+      "Bash(\"venv/Scripts/python.exe\" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []
