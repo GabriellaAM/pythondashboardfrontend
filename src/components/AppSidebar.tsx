@@ -68,6 +68,7 @@ export function AppSidebar() {
     shared_at: string;
     shared_by: string;
   }>>([]);
+  const [sharedLoading, setSharedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   // Sidebar rename editing state (activated by double-click or menu action)
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
@@ -239,6 +240,7 @@ export function AppSidebar() {
 
   const loadSharedDashboards = async () => {
     try {
+      setSharedLoading(true);
       console.log('Loading shared dashboards...');
       console.log('Current user:', user);
       console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
@@ -297,6 +299,8 @@ export function AppSidebar() {
 
       // Set empty array as fallback
       setSharedDashboards([]);
+    } finally {
+      setSharedLoading(false);
     }
   };
 
@@ -668,7 +672,14 @@ export function AppSidebar() {
             {sharedOpen && (
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {sharedDashboards.length === 0 ? (
+                  {sharedLoading ? (
+                    <SidebarMenuItem>
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
+                        <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full animate-pulse" />
+                        <span>Loading shared dashboards...</span>
+                      </div>
+                    </SidebarMenuItem>
+                  ) : sharedDashboards.length === 0 ? (
                     <SidebarMenuItem>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
                         <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full" />
