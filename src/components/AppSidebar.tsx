@@ -93,12 +93,6 @@ export function AppSidebar() {
     loadDashboards();
   }, []);
 
-  // Load shared dashboards when user is available
-  useEffect(() => {
-    if (user) {
-      loadSharedDashboards();
-    }
-  }, [user]);
 
   // Also listen for storage changes (auth token updates)
   useEffect(() => {
@@ -248,89 +242,31 @@ export function AppSidebar() {
       console.log('Loading shared dashboards...');
       console.log('Current user:', user);
       console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
-      
-      // Dashboards shared with me
-      let sharedWithMe: typeof sharedDashboards = [];
-      try {
-        console.log('Fetching dashboards shared with me...');
-        sharedWithMe = await apiClient.getSharedDashboards();
-        console.log('Dashboards shared with me:', sharedWithMe);
-      } catch (sharedError: any) {
-        console.error('Error fetching shared-with-me dashboards:', {
-          status: sharedError.status,
-          message: sharedError.message,
-          stack: sharedError.stack
-        });
-        
-        // If it's a server error (500), try to continue with empty array
-        if (sharedError.status === 500) {
-          console.warn('Server error 500 detected, continuing with empty shared dashboards');
-          sharedWithMe = [];
-        } else {
-          throw sharedError; // Re-throw if it's not a 500 error
-        }
+
+      // Only load dashboards shared WITH me (not dashboards I shared with others)
+      console.log('Fetching dashboards shared with me...');
+      const sharedWithMe = await apiClient.getSharedDashboards();
+      console.log('Dashboards shared with me:', sharedWithMe);
+
+      setSharedDashboards(sharedWithMe);
+
+      if (sharedWithMe.length > 0) {
+        console.log(`✅ Successfully loaded ${sharedWithMe.length} shared dashboard(s)`);
       }
 
-      // Dashboards I own that are shared with others
-      let sharedByMe: typeof sharedDashboards = [];
-      try {
-        if (dashboards.length > 0) {
-          console.log('Checking dashboards I own for sharing:', dashboards.length);
-          const results = await Promise.allSettled(
-            dashboards.map(async (d) => {
-              try {
-                const users = await apiClient.getDashboardSharedUsers(d.id);
-                return { dashboard: d, users };
-              } catch (error: any) {
-                console.warn(`Failed to get shared users for dashboard ${d.id}:`, error);
-                return { dashboard: d, users: [] };
-              }
-            })
-          );
-          sharedByMe = results
-            .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.users.length > 0)
-            .map(r => {
-              const { dashboard } = (r as PromiseFulfilledResult<any>).value;
-              return {
-                id: dashboard.id,
-                name: dashboard.name,
-                description: dashboard.description,
-                owner_id: (user?.id || '') as any,
-                permissions: ['edit'] as string[],
-                shared_at: new Date().toISOString(),
-                shared_by: 'You'
-              };
-            });
-          console.log('Dashboards I shared with others:', sharedByMe);
-        }
-      } catch (e) {
-        console.warn('Error loading dashboards I shared:', e);
-      }
-
-      // Merge and deduplicate by id
-      const merged = [...(sharedWithMe || []), ...sharedByMe];
-      const unique = Array.from(new Map(merged.map(m => [m.id, m])).values());
-      console.log('Final merged shared dashboards:', unique);
-      setSharedDashboards(unique);
-      
-      // Show success message if we have shared dashboards
-      if (unique.length > 0) {
-        console.log(`✅ Successfully loaded ${unique.length} shared dashboard(s)`);
-      }
-      
     } catch (e: any) {
       console.error('Could not load shared dashboards:', {
         error: e,
         status: e.status,
         message: e.message
       });
-      
+
       // Set empty array as fallback
       setSharedDashboards([]);
     }
   };
 
-  // Refresh shared dashboards when owned dashboards list changes (to compute "shared by me")
+  // Load shared dashboards when user and dashboards are available
   useEffect(() => {
     if (user && dashboards.length > 0) {
       loadSharedDashboards();
