@@ -256,7 +256,7 @@ export function AppSidebar() {
       const sharedWithMe = await apiClient.getSharedDashboards();
       console.log('Dashboards shared with me:', sharedWithMe);
 
-      // Also load dashboards I shared with others (for info purposes)
+      // Also load dashboards I shared with others
       const dashboardsIShared: any[] = [];
       if (dashboards.length > 0) {
         console.log('🔍 Checking which dashboards I shared with others...');
@@ -267,6 +267,10 @@ export function AppSidebar() {
               console.log(`📤 Dashboard "${dashboard.name}" is shared with ${users.length} user(s):`, users);
               dashboardsIShared.push({
                 ...dashboard,
+                owner_id: user?.id,
+                permissions: ['edit'],
+                shared_at: users?.[0]?.shared_at || new Date().toISOString(),
+                shared_by: user?.full_name || user?.email || 'Me',
                 sharedUsers: users
               });
             }
@@ -276,12 +280,13 @@ export function AppSidebar() {
         }
       }
 
-      // For the sidebar, show only dashboards shared WITH me
-      setSharedDashboards(sharedWithMe);
+      // For the sidebar, show dashboards shared WITH me + dashboards I shared with others
+      setSharedDashboards([...(sharedWithMe || []), ...dashboardsIShared]);
 
       console.log('📊 Summary:');
       console.log(`📥 Dashboards shared with me: ${sharedWithMe.length}`);
       console.log(`📤 Dashboards I shared with others: ${dashboardsIShared.length}`);
+      console.log(`📚 Total shown in sidebar: ${(sharedWithMe || []).length + dashboardsIShared.length}`);
 
     } catch (e: any) {
       console.error('Could not load shared dashboards:', {
