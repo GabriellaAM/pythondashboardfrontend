@@ -79,12 +79,13 @@ export default function Dashboard() {
             let accessibleDashboard = null;
             for (const dashboard of dashboards) {
               try {
-                // Test if we can access this dashboard
+                // Test if we can access this dashboard and its components
                 await apiClient.getDashboard(dashboard.id);
+                await apiClient.getDashboardComponents(dashboard.id);
                 accessibleDashboard = dashboard;
                 break;
               } catch (testError) {
-                console.warn(`Dashboard ${dashboard.id} not accessible:`, testError);
+                console.warn(`Dashboard ${dashboard.id} not fully accessible:`, testError);
                 continue;
               }
             }
@@ -180,7 +181,12 @@ export default function Dashboard() {
         } catch (error) {
           console.warn('Failed to load dashboard info:', error);
         }
-        backendComponents = await apiClient.getDashboardComponents(currentDashboardId);
+        try {
+          backendComponents = await apiClient.getDashboardComponents(currentDashboardId);
+        } catch (error) {
+          console.warn('Failed to load dashboard components:', error);
+          backendComponents = [];
+        }
       }
 
       try {
