@@ -243,16 +243,37 @@ export function AppSidebar() {
       console.log('Current user:', user);
       console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
 
-      // Only load dashboards shared WITH me (not dashboards I shared with others)
+      // Load dashboards shared WITH me
       console.log('Fetching dashboards shared with me...');
       const sharedWithMe = await apiClient.getSharedDashboards();
       console.log('Dashboards shared with me:', sharedWithMe);
 
+      // Also load dashboards I shared with others (for info purposes)
+      const dashboardsIShared: any[] = [];
+      if (dashboards.length > 0) {
+        console.log('🔍 Checking which dashboards I shared with others...');
+        for (const dashboard of dashboards) {
+          try {
+            const users = await apiClient.getDashboardSharedUsers(dashboard.id);
+            if (users.length > 0) {
+              console.log(`📤 Dashboard "${dashboard.name}" is shared with ${users.length} user(s):`, users);
+              dashboardsIShared.push({
+                ...dashboard,
+                sharedUsers: users
+              });
+            }
+          } catch (error) {
+            console.warn(`Failed to check sharing for dashboard ${dashboard.id}:`, error);
+          }
+        }
+      }
+
+      // For the sidebar, show only dashboards shared WITH me
       setSharedDashboards(sharedWithMe);
 
-      if (sharedWithMe.length > 0) {
-        console.log(`✅ Successfully loaded ${sharedWithMe.length} shared dashboard(s)`);
-      }
+      console.log('📊 Summary:');
+      console.log(`📥 Dashboards shared with me: ${sharedWithMe.length}`);
+      console.log(`📤 Dashboards I shared with others: ${dashboardsIShared.length}`);
 
     } catch (e: any) {
       console.error('Could not load shared dashboards:', {

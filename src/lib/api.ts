@@ -189,9 +189,19 @@ class ApiClient {
 
   async getSharedDashboards() {
     try {
-      return this.request<SharedDashboard[]>('/api/dashboards/shared-with-me');
+      console.log('🔍 Making API call to /api/dashboards/shared-with-me');
+      console.log('🔑 Token:', this.token ? 'exists' : 'missing');
+      console.log('🌐 API Base URL:', API_BASE_URL);
+
+      const result = await this.request<SharedDashboard[]>('/api/dashboards/shared-with-me');
+      console.log('✅ API Response from /api/dashboards/shared-with-me:', result);
+      return result;
     } catch (error: any) {
-      console.warn('Failed to fetch shared dashboards:', error);
+      console.error('❌ Failed to fetch shared dashboards:', {
+        status: error.status,
+        message: error.message,
+        url: `${API_BASE_URL}/api/dashboards/shared-with-me`
+      });
       // Return empty array as fallback
       return [];
     }
