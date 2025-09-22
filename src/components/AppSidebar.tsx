@@ -302,11 +302,11 @@ export function AppSidebar() {
 
   // Load shared dashboards when user is available (even if no own dashboards)
   useEffect(() => {
-    if (user) {
+    if (user && sharedOpen) {
       loadSharedDashboards();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, dashboards.length]);
+  }, [user, dashboards.length, sharedOpen]);
 
   const createWelcomeDashboard = async () => {
     try {

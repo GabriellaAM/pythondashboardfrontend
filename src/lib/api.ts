@@ -150,6 +150,10 @@ class ApiClient {
     return this.request<Dashboard[]>('/api/dashboards/');
   }
 
+  async getAccessibleDashboards() {
+    return this.request<Dashboard[]>('/api/dashboards/accessible');
+  }
+
   async getDashboard(id: string) {
     return this.request<Dashboard>(`/api/dashboards/${id}`);
   }

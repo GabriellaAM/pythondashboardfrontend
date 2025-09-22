@@ -82,7 +82,8 @@ export default function Dashboard() {
       if (!isShare && !dashId) {
         // If no dashboard ID in URL, get first accessible dashboard from API
         try {
-          const dashboards = await apiClient.getDashboards();
+          // Use accessible dashboards to avoid N calls/testes
+          const dashboards = await apiClient.getAccessibleDashboards();
           if (dashboards && dashboards.length > 0) {
             // Try each dashboard until we find one that's accessible
             let accessibleDashboard = null;

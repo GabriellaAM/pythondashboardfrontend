@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import React, { Suspense } from 'react';
 import { Layout } from "@/components/Layout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
@@ -94,12 +95,16 @@ const App = () => (
             {/* Public/Shared routes (no auth required) */}
             <Route path="/public/:id" element={
               <Layout>
-                <DashboardRoute />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-6 h-6 border-2 border-muted border-t-foreground rounded-full animate-spin" /></div>}>
+                  <DashboardRoute />
+                </Suspense>
               </Layout>
             } />
             <Route path="/share/:token" element={
               <Layout>
-                <DashboardRoute />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-6 h-6 border-2 border-muted border-t-foreground rounded-full animate-spin" /></div>}>
+                  <DashboardRoute />
+                </Suspense>
               </Layout>
             } />
             <Route path="/settings" element={
