@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Plus, MoreVertical, BarChart3, Table, Target } from "lucide-react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "@/lib/api";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 export default function Dashboard() {
   const { id: dashboardId, token: shareToken } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [componentLoading, setComponentLoading] = useState<Set<string>>(new Set());
@@ -94,8 +95,8 @@ export default function Dashboard() {
             if (accessibleDashboard) {
               dashId = accessibleDashboard.id;
               console.log('Using first accessible dashboard:', dashId);
-              // Update URL to reflect the dashboard being viewed
-              window.history.replaceState({}, '', `/dashboard/${dashId}`);
+              // Update URL to reflect the dashboard being viewed using React Router
+              navigate(`/dashboard/${dashId}`, { replace: true });
               setShowWelcome(false);
             } else {
               // No accessible dashboards found - show welcome screen
@@ -414,8 +415,8 @@ export default function Dashboard() {
   const handleWelcomeDashboardCreated = (dashboardId: string) => {
     setCurrentDashboardId(dashboardId);
     setShowWelcome(false);
-    // Update URL to show the new dashboard
-    window.history.replaceState({}, '', `/dashboard/${dashboardId}`);
+    // Update URL to show the new dashboard using React Router
+    navigate(`/dashboard/${dashboardId}`, { replace: true });
   };
 
   const handleAddSection = async (title: string, type: 'header' | 'subheader' | 'text' | 'description') => {
