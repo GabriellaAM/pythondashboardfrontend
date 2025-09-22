@@ -79,9 +79,10 @@ export default function Dashboard() {
             let accessibleDashboard = null;
             for (const dashboard of dashboards) {
               try {
-                // Test if we can access this dashboard and its components
+                // Test if we can access this dashboard, its components, and its blocks
                 await apiClient.getDashboard(dashboard.id);
                 await apiClient.getDashboardComponents(dashboard.id);
+                await apiClient.getDashboardBlocks(dashboard.id);
                 accessibleDashboard = dashboard;
                 break;
               } catch (testError) {
