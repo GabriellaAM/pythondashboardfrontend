@@ -103,8 +103,7 @@ export default function Dashboard() {
             if (accessibleDashboard) {
               dashId = accessibleDashboard.id;
               console.log('Using first accessible dashboard:', dashId);
-              // Update URL to reflect the dashboard being viewed using React Router
-              navigate(`/dashboard/${dashId}`, { replace: true });
+              // Set the dashboard without changing URL to avoid infinite loop
               setCurrentDashboardId(dashId);
               setShowWelcome(false);
               return;
