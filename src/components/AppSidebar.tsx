@@ -187,14 +187,6 @@ export function AppSidebar() {
         }
       }
       
-      // Test the alternative method
-      try {
-        console.log('Testing alternative shared dashboards method...');
-        const altSharedDashboards = await apiClient.getAllDashboardsWithSharedInfo();
-        console.log('Alternative method result:', altSharedDashboards);
-      } catch (altError) {
-        console.error('Alternative method failed:', altError);
-      }
     };
     return () => {
       delete (window as any).reloadDashboards;
