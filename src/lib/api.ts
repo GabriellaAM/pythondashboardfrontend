@@ -205,7 +205,7 @@ class ApiClient {
   }
 
   async getDashboardSharedUsers(dashboardId: string) {
-    return this.request<{ email: string; full_name: string; shared_at: string }[]>(`/api/dashboards/${dashboardId}/shared-users`);
+    return this.request<{ email: string; full_name: string; permissions: string[]; shared_at: string }[]>(`/api/dashboards/${dashboardId}/shared-users`);
   }
 
 
