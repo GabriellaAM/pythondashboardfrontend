@@ -75,12 +75,11 @@ export default function Dashboard() {
       // If we have a dashboard ID from URL, use it directly
       if (dashId) {
         setCurrentDashboardId(dashId);
-        setLoading(false);
         return;
       }
 
-      // Only search for a dashboard if we're at the root dashboard route
-      if (!isShare && location.pathname === '/dashboard') {
+      // Only search for a dashboard if we don't have one and we're not in a share route
+      if (!isShare && !dashId) {
         // If no dashboard ID in URL, get first accessible dashboard from API
         try {
           const dashboards = await apiClient.getDashboards();
@@ -106,6 +105,7 @@ export default function Dashboard() {
               console.log('Using first accessible dashboard:', dashId);
               // Update URL to reflect the dashboard being viewed using React Router
               navigate(`/dashboard/${dashId}`, { replace: true });
+              setCurrentDashboardId(dashId);
               setShowWelcome(false);
               return;
             } else {
