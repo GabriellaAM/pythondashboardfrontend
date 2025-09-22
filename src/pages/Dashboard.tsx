@@ -75,6 +75,7 @@ export default function Dashboard() {
       // If we have a dashboard ID from URL, use it directly
       if (dashId) {
         setCurrentDashboardId(dashId);
+        setLoading(false);
         return;
       }
 
@@ -128,6 +129,9 @@ export default function Dashboard() {
           return;
         }
       }
+
+      // Ensure loading is always set to false if no other path is taken
+      setLoading(false);
     };
 
     initializeApp();
