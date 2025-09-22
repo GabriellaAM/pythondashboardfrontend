@@ -71,15 +71,37 @@ export default function Dashboard() {
       // Set dashboard ID
       let dashId = dashboardId;
       if (!dashId && !isShare) {
-        // If no dashboard ID in URL, get first dashboard from API
+        // If no dashboard ID in URL, get first accessible dashboard from API
         try {
           const dashboards = await apiClient.getDashboards();
           if (dashboards && dashboards.length > 0) {
-            dashId = dashboards[0].id;
-            console.log('Using first available dashboard:', dashId);
-            // Update URL to reflect the dashboard being viewed
-            window.history.replaceState({}, '', `/dashboard/${dashId}`);
-            setShowWelcome(false);
+            // Try each dashboard until we find one that's accessible
+            let accessibleDashboard = null;
+            for (const dashboard of dashboards) {
+              try {
+                // Test if we can access this dashboard
+                await apiClient.getDashboard(dashboard.id);
+                accessibleDashboard = dashboard;
+                break;
+              } catch (testError) {
+                console.warn(`Dashboard ${dashboard.id} not accessible:`, testError);
+                continue;
+              }
+            }
+
+            if (accessibleDashboard) {
+              dashId = accessibleDashboard.id;
+              console.log('Using first accessible dashboard:', dashId);
+              // Update URL to reflect the dashboard being viewed
+              window.history.replaceState({}, '', `/dashboard/${dashId}`);
+              setShowWelcome(false);
+            } else {
+              // No accessible dashboards found - show welcome screen
+              console.log('No accessible dashboards found, showing welcome screen');
+              setShowWelcome(true);
+              setLoading(false);
+              return;
+            }
           } else {
             // No dashboards found - show welcome screen
             console.log('No dashboards found, showing welcome screen');
