@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/lib/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -24,7 +25,30 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate("/dashboard");
+      // Após logar, navegar diretamente para o primeiro dashboard próprio
+      try {
+        const owned = await apiClient.getDashboards();
+        if (owned && owned.length > 0) {
+          navigate(`/dashboard/${owned[0].id}`, { replace: true });
+          return;
+        }
+      } catch (e) {
+        // ignore, tenta acessíveis
+      }
+
+      // Fallback: primeiro dashboard acessível (own/public/shared)
+      try {
+        const accessible = await apiClient.getAccessibleDashboards();
+        if (accessible && accessible.length > 0) {
+          navigate(`/dashboard/${accessible[0].id}`, { replace: true });
+          return;
+        }
+      } catch (e) {
+        // ignore, cai no genérico
+      }
+
+      // Último fallback: rota genérica (welcome cuidará do resto)
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       setError(err.message || "Failed to login. Please try again.");
     } finally {
