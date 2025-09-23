@@ -80,12 +80,25 @@ export default function Dashboard() {
 
       // Only search for a dashboard if we don't have one and we're not in a share route
       if (!isShare && !dashId) {
-        // If no dashboard ID in URL, get first accessible dashboard from API
+        // Preferir o primeiro dashboard PRÓPRIO do usuário
         try {
-          // Use accessible dashboards to avoid N calls/testes
+          const ownedDashboards = await apiClient.getDashboards();
+          if (ownedDashboards && ownedDashboards.length > 0) {
+            const firstOwned = ownedDashboards[0];
+            dashId = firstOwned.id;
+            setCurrentDashboardId(dashId);
+            setShowWelcome(false);
+            navigate(`/dashboard/${dashId}`, { replace: true });
+            return;
+          }
+        } catch (error) {
+          console.warn('Could not load owned dashboards:', error);
+        }
+
+        // Fallback: usar o primeiro dashboard ACESSÍVEL (own/public/shared)
+        try {
           const dashboards = await apiClient.getAccessibleDashboards();
           if (dashboards && dashboards.length > 0) {
-            // Try each dashboard until we find one that's accessible
             let accessibleDashboard = null;
             for (const dashboard of dashboards) {
               try {
@@ -104,26 +117,19 @@ export default function Dashboard() {
             if (accessibleDashboard) {
               dashId = accessibleDashboard.id;
               console.log('Using first accessible dashboard:', dashId);
-              // Set the dashboard without changing URL to avoid infinite loop
               setCurrentDashboardId(dashId);
               setShowWelcome(false);
-              return;
-            } else {
-              // No accessible dashboards found - show welcome screen
-              console.log('No accessible dashboards found, showing welcome screen');
-              setShowWelcome(true);
-              setLoading(false);
+              navigate(`/dashboard/${dashId}`, { replace: true });
               return;
             }
-          } else {
-            // No dashboards found - show welcome screen
-            console.log('No dashboards found, showing welcome screen');
-            setShowWelcome(true);
-            setLoading(false);
-            return;
           }
+
+          console.log('No accessible dashboards found, showing welcome screen');
+          setShowWelcome(true);
+          setLoading(false);
+          return;
         } catch (error) {
-          console.warn('Could not load dashboards:', error);
+          console.warn('Could not load accessible dashboards:', error);
           setShowWelcome(true);
           setLoading(false);
           return;
