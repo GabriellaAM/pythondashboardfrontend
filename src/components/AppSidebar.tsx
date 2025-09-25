@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   BarChart3, 
   Settings, 
@@ -52,6 +53,7 @@ interface DashboardItem {
 }
 
 export function AppSidebar() {
+  const queryClient = useQueryClient();
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
@@ -70,6 +72,9 @@ export function AppSidebar() {
   }>>([]);
   const [sharedLoading, setSharedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Avoid concurrent loads / visual flicker when data already present
+  const loadingDashboardsRef = useRef(false);
+  const loadingSharedRef = useRef(false);
   // Sidebar rename editing state (activated by double-click or menu action)
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -92,6 +97,10 @@ export function AppSidebar() {
   // Load dashboards from API
   useEffect(() => {
     loadDashboards();
+    // Revalidar quando voltar o foco (sem flicker se já houver dados)
+    const onFocus = () => loadDashboards();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
 
@@ -204,16 +213,27 @@ export function AppSidebar() {
 
     window.addEventListener('dashboards-changed', handleDashboardsChanged);
     window.addEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
+    // Invalidate queries to keep cache fresh
+    const invalidateDashboards = () => queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+    const invalidateShared = () => queryClient.invalidateQueries({ queryKey: ['sharedDashboards'] });
+    window.addEventListener('dashboards-changed', invalidateDashboards);
+    window.addEventListener('shared-dashboards-changed', invalidateShared);
     
     return () => {
       window.removeEventListener('dashboards-changed', handleDashboardsChanged);
       window.removeEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
+      window.removeEventListener('dashboards-changed', invalidateDashboards);
+      window.removeEventListener('shared-dashboards-changed', invalidateShared);
     };
   }, []);
 
   const loadDashboards = async () => {
+    if (loadingDashboardsRef.current) return;
+    loadingDashboardsRef.current = true;
     try {
-      setLoading(true);
+      if (dashboards.length === 0) {
+        setLoading(true);
+      }
       console.log('Loading dashboards...');
       
       // Wait a bit to ensure auth token is set
@@ -224,7 +244,13 @@ export function AppSidebar() {
         attempts++;
       }
       
-      const dashboardsData = await apiClient.getDashboards();
+      // Fetch with React Query cache/dedup
+      const dashboardsData = await queryClient.fetchQuery({
+        queryKey: ['dashboards'],
+        queryFn: () => apiClient.getDashboards(),
+        staleTime: 60_000,
+        gcTime: 300_000,
+      });
       console.log('Dashboards loaded:', dashboardsData);
       setDashboards(dashboardsData || []);
       
@@ -235,12 +261,17 @@ export function AppSidebar() {
       console.log('Skipping auto-creation of welcome dashboard');
     } finally {
       setLoading(false);
+      loadingDashboardsRef.current = false;
     }
   };
 
   const loadSharedDashboards = async () => {
+    if (loadingSharedRef.current) return;
+    loadingSharedRef.current = true;
     try {
-      setSharedLoading(true);
+      if (sharedDashboards.length === 0) {
+        setSharedLoading(true);
+      }
       console.log('Loading shared dashboards...');
       console.log('Current user:', user);
       console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
@@ -252,43 +283,45 @@ export function AppSidebar() {
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       }
-
-      // Load dashboards shared WITH me
-      console.log('Fetching dashboards shared with me...');
-      const sharedWithMe = await apiClient.getSharedDashboards();
-      console.log('Dashboards shared with me:', sharedWithMe);
-
-      // Also load dashboards I shared with others
-      const dashboardsIShared: any[] = [];
-      if (dashboards.length > 0) {
-        console.log('🔍 Checking which dashboards I shared with others...');
-        for (const dashboard of dashboards) {
-          try {
-            const users = await apiClient.getDashboardSharedUsers(dashboard.id);
-            if (users.length > 0) {
-              console.log(`📤 Dashboard "${dashboard.name}" is shared with ${users.length} user(s):`, users);
-              dashboardsIShared.push({
-                ...dashboard,
-                owner_id: user?.id,
-                permissions: ['edit'],
-                shared_at: users?.[0]?.shared_at || new Date().toISOString(),
-                shared_by: user?.full_name || user?.email || 'Me',
-                sharedUsers: users
-              });
+      
+      const combinedShared = await queryClient.fetchQuery({
+        queryKey: ['sharedDashboards', user?.id, dashboards.map(d => d.id).join(',')],
+        queryFn: async () => {
+          console.log('Fetching dashboards shared with me...');
+          const sharedWithMe = await apiClient.getSharedDashboards();
+          console.log('Dashboards shared with me:', sharedWithMe);
+          const dashboardsIShared: any[] = [];
+          if (dashboards.length > 0) {
+            console.log('🔍 Checking which dashboards I shared with others...');
+            for (const dashboard of dashboards) {
+              try {
+                const users = await apiClient.getDashboardSharedUsers(dashboard.id);
+                if (users.length > 0) {
+                  dashboardsIShared.push({
+                    ...dashboard,
+                    owner_id: user?.id,
+                    permissions: ['edit'],
+                    shared_at: users?.[0]?.shared_at || new Date().toISOString(),
+                    shared_by: user?.full_name || user?.email || 'Me',
+                    sharedUsers: users
+                  });
+                }
+              } catch (error) {
+                console.warn(`Failed to check sharing for dashboard ${dashboard.id}:`, error);
+              }
             }
-          } catch (error) {
-            console.warn(`Failed to check sharing for dashboard ${dashboard.id}:`, error);
           }
-        }
-      }
+          return [...(sharedWithMe || []), ...dashboardsIShared];
+        },
+        staleTime: 60_000,
+        gcTime: 300_000,
+      });
 
       // For the sidebar, show dashboards shared WITH me + dashboards I shared with others
-      setSharedDashboards([...(sharedWithMe || []), ...dashboardsIShared]);
+      setSharedDashboards(combinedShared || []);
 
       console.log('📊 Summary:');
-      console.log(`📥 Dashboards shared with me: ${sharedWithMe.length}`);
-      console.log(`📤 Dashboards I shared with others: ${dashboardsIShared.length}`);
-      console.log(`📚 Total shown in sidebar: ${(sharedWithMe || []).length + dashboardsIShared.length}`);
+      console.log(`📚 Total shown in sidebar: ${combinedShared?.length || 0}`);
 
     } catch (e: any) {
       console.error('Could not load shared dashboards:', {
@@ -301,6 +334,7 @@ export function AppSidebar() {
       setSharedDashboards([]);
     } finally {
       setSharedLoading(false);
+      loadingSharedRef.current = false;
     }
   };
 
@@ -310,7 +344,7 @@ export function AppSidebar() {
       loadSharedDashboards();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, dashboards.length, sharedOpen]);
+  }, [user?.id, dashboards.length, sharedOpen]);
 
   const createWelcomeDashboard = async () => {
     try {
@@ -552,7 +586,7 @@ export function AppSidebar() {
             {dashboardsOpen && (
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {loading ? (
+                  {loading && dashboards.length === 0 ? (
                     <SidebarMenuItem>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
                         <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full animate-pulse" />
@@ -672,7 +706,7 @@ export function AppSidebar() {
             {sharedOpen && (
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {sharedLoading ? (
+                  {sharedLoading && sharedDashboards.length === 0 ? (
                     <SidebarMenuItem>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
                         <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full animate-pulse" />

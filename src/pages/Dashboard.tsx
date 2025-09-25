@@ -6,6 +6,7 @@ import { useDashboard } from "@/contexts/DashboardContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Responsive, WidthProvider, Layout } from "react-grid-layout";
+import { useQueryClient } from "@tanstack/react-query";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ interface ComponentItem {
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const { id: dashboardId, token: shareToken } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -167,7 +169,12 @@ export default function Dashboard() {
 
       if (isShare && shareToken) {
         try {
-          const sharedDashboard = await apiClient.getSharedDashboardByToken(shareToken);
+          const sharedDashboard = await queryClient.fetchQuery({
+            queryKey: ['sharedDashboard', shareToken],
+            queryFn: () => apiClient.getSharedDashboardByToken(shareToken),
+            staleTime: 60_000,
+            gcTime: 300_000,
+          });
           if (idBeingLoaded === currentDashboardId) {
             setCurrentDashboard(sharedDashboard);
           } else {
@@ -176,10 +183,20 @@ export default function Dashboard() {
         } catch (e) {
           console.warn('Failed to load shared dashboard info:', e);
         }
-        backendComponents = await apiClient.getSharedComponentsByToken(shareToken);
+        backendComponents = await queryClient.fetchQuery({
+          queryKey: ['sharedComponents', shareToken],
+          queryFn: () => apiClient.getSharedComponentsByToken(shareToken),
+          staleTime: 60_000,
+          gcTime: 300_000,
+        });
       } else if (isPublic && currentDashboardId) {
         try {
-          const dashboard = await apiClient.getDashboard(currentDashboardId);
+          const dashboard = await queryClient.fetchQuery({
+            queryKey: ['dashboard', currentDashboardId],
+            queryFn: () => apiClient.getDashboard(currentDashboardId),
+            staleTime: 60_000,
+            gcTime: 300_000,
+          });
           if (idBeingLoaded === currentDashboardId) {
             setCurrentDashboard(dashboard);
           } else {
@@ -188,11 +205,21 @@ export default function Dashboard() {
         } catch (e) {
           console.warn('Failed to load public dashboard info:', e);
         }
-        backendComponents = await apiClient.getPublicDashboardComponents(currentDashboardId);
+        backendComponents = await queryClient.fetchQuery({
+          queryKey: ['publicDashboardComponents', currentDashboardId],
+          queryFn: () => apiClient.getPublicDashboardComponents(currentDashboardId),
+          staleTime: 60_000,
+          gcTime: 300_000,
+        });
       } else if (currentDashboardId) {
         // Authenticated flow
         try {
-          const dashboard = await apiClient.getDashboard(currentDashboardId);
+          const dashboard = await queryClient.fetchQuery({
+            queryKey: ['dashboard', currentDashboardId],
+            queryFn: () => apiClient.getDashboard(currentDashboardId),
+            staleTime: 60_000,
+            gcTime: 300_000,
+          });
           if (idBeingLoaded === currentDashboardId) {
             setCurrentDashboard(dashboard);
           } else {
@@ -202,7 +229,12 @@ export default function Dashboard() {
           console.warn('Failed to load dashboard info:', error);
         }
         try {
-          backendComponents = await apiClient.getDashboardComponents(currentDashboardId);
+          backendComponents = await queryClient.fetchQuery({
+            queryKey: ['dashboardComponents', currentDashboardId],
+            queryFn: () => apiClient.getDashboardComponents(currentDashboardId),
+            staleTime: 60_000,
+            gcTime: 300_000,
+          });
         } catch (error) {
           console.warn('Failed to load dashboard components:', error);
           backendComponents = [];
@@ -235,7 +267,12 @@ export default function Dashboard() {
       // Load content blocks when authenticated (owner or shared). Public/share routes may need a public blocks route if enabled.
       try {
         if (!isPublic && currentDashboardId) {
-          const blocks = await apiClient.getDashboardBlocks(currentDashboardId);
+          const blocks = await queryClient.fetchQuery({
+            queryKey: ['dashboardBlocks', currentDashboardId],
+            queryFn: () => apiClient.getDashboardBlocks(currentDashboardId),
+            staleTime: 60_000,
+            gcTime: 300_000,
+          });
           if (idBeingLoaded === currentDashboardId) {
             const mappedSections = blocks
               .sort((a, b) => a.order_index - b.order_index)
@@ -320,6 +357,9 @@ export default function Dashboard() {
               width: layoutItem.w,
               height: layoutItem.h
             });
+            if (currentDashboardId) {
+              queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+            }
           } else {
             // Create component in backend for the first time
             console.log(`Creating new backend component for ${component.id}:`, layoutItem);
@@ -361,6 +401,10 @@ export default function Dashboard() {
       const results = await Promise.allSettled(updatePromises);
       const failures = results.filter(r => r.status === 'rejected');
       if (failures.length === 0) {
+        // Invalidate components query to refresh
+        if (currentDashboardId) {
+          queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+        }
         toast({
           title: "Success",
           description: "Layout saved successfully",
@@ -465,6 +509,7 @@ export default function Dashboard() {
       if (!section || !currentDashboardId) return;
       await apiClient.updateDashboardBlock(currentDashboardId, section.backendId || id, { content: title });
       setSections(prev => prev.map(s => s.id === id ? { ...s, title } : s));
+      queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
     } catch (e: any) {
       if (e.status === 403) {
         setIsReadOnly(true);
@@ -482,6 +527,7 @@ export default function Dashboard() {
       if (!section || !currentDashboardId) return;
       await apiClient.deleteDashboardBlock(currentDashboardId, section.backendId || id);
       setSections(prev => prev.filter(s => s.id !== id));
+      queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
     } catch (e: any) {
       if (e.status === 403) {
         setIsReadOnly(true);
@@ -508,6 +554,8 @@ export default function Dashboard() {
 
       // Update sidebar
       refreshDashboards();
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', currentDashboardId] });
       
     } catch (error) {
       console.error('Failed to update dashboard name:', error);
@@ -532,6 +580,7 @@ export default function Dashboard() {
         ...currentDashboard,
         description: newDescription
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', currentDashboardId] });
       
     } catch (error) {
       console.error('Failed to update dashboard description:', error);
@@ -588,6 +637,9 @@ export default function Dashboard() {
             layout: defaultLayout
           };
           setComponents(prev => [...prev, newComponent]);
+          if (currentDashboardId) {
+            queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+          }
         } catch (error) {
           console.error('Failed to save to backend:', error);
           throw error;
