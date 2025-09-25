@@ -19,6 +19,7 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -28,7 +29,20 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirecionar imediatamente para o último dashboard se estiver em "/" ou "/dashboard"
+  const path = location.pathname;
+  if (path === "/" || path === "/dashboard") {
+    const lastId = localStorage.getItem('last_dashboard_id');
+    if (lastId) {
+      return <Navigate to={`/dashboard/${lastId}`} replace />;
+    }
+  }
+
+  return <>{children}</>;
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {

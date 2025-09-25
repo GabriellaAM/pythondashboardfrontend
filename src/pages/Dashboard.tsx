@@ -118,6 +118,9 @@ export default function Dashboard() {
               dashId = accessibleDashboard.id;
               console.log('Using first accessible dashboard:', dashId);
               setCurrentDashboardId(dashId);
+              localStorage.setItem('last_dashboard_id', dashId);
+              setCurrentDashboardId(dashId);
+              localStorage.setItem('last_dashboard_id', dashId);
               setShowWelcome(false);
               navigate(`/dashboard/${dashId}`, { replace: true });
               return;

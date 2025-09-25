@@ -588,7 +588,7 @@ export function AppSidebar() {
                             <SidebarMenuButton asChild className="flex-1">
                               <NavLink
                                 to={`/dashboard/${dashboard.id}`}
-                                onClick={() => setCurrentDashboard(dashboard)}
+                                onClick={() => { setCurrentDashboard(dashboard); localStorage.setItem('last_dashboard_id', dashboard.id); }}
                                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(dashboard.id, dashboard.name); }}
                                 className={cn(
                                   "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1 cursor-pointer",
@@ -699,7 +699,7 @@ export function AppSidebar() {
                               owner_id: dashboard.owner_id,
                               created_at: new Date().toISOString(),
                               updated_at: new Date().toISOString(),
-                            } as any)}
+                            } as any); localStorage.setItem('last_dashboard_id', dashboard.id);}
                             className={cn(
                               "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1",
                               isActive(`/dashboard/${dashboard.id}`)
