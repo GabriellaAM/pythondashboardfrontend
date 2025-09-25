@@ -39,6 +39,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const lastId = localStorage.getItem('last_dashboard_id');
     if (lastId) {
       return <Navigate to={`/dashboard/${lastId}`} replace />;
+    } else {
+      // Sem lastId, evite loops: apenas deixe o filho renderizar e o Dashboard decidir
     }
   }
 
