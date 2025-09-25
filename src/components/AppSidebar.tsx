@@ -692,14 +692,14 @@ export function AppSidebar() {
                         <SidebarMenuButton asChild className="flex-1">
                           <NavLink
                             to={`/dashboard/${dashboard.id}`}
-                            onClick={() => setCurrentDashboard({
+                            onClick={() => { setCurrentDashboard({
                               id: dashboard.id,
                               name: dashboard.name,
                               description: dashboard.description,
                               owner_id: dashboard.owner_id,
                               created_at: new Date().toISOString(),
                               updated_at: new Date().toISOString(),
-                            } as any); localStorage.setItem('last_dashboard_id', dashboard.id);}
+                            } as any); localStorage.setItem('last_dashboard_id', dashboard.id); }}
                             className={cn(
                               "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1",
                               isActive(`/dashboard/${dashboard.id}`)
