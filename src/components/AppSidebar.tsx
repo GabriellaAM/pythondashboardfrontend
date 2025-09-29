@@ -1,15 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  BarChart3, 
-  Settings, 
+import {
+  Settings,
   Plus,
   ChevronDown,
   LogOut,
   User,
   MoreHorizontal,
   Trash2,
-  Edit
+  Edit,
+  Pin,
+  PinOff,
+  Users,
+  Share2,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import datavizLogo from "@/assets/datavizlogo.png";
@@ -50,6 +53,7 @@ interface DashboardItem {
   description?: string;
   created_at: string;
   updated_at: string;
+  dashboardType?: 'owned' | 'shared_with_me' | 'shared_by_me';
 }
 
 export function AppSidebar() {
@@ -60,7 +64,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const [dashboardsOpen, setDashboardsOpen] = useState(true);
   const [dashboards, setDashboards] = useState<DashboardItem[]>([]);
-  const [sharedOpen, setSharedOpen] = useState(true);
   const [sharedDashboards, setSharedDashboards] = useState<Array<{
     id: string;
     name: string;
@@ -70,21 +73,17 @@ export function AppSidebar() {
     shared_at: string;
     shared_by: string;
   }>>([]);
-  const [sharedLoading, setSharedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  // Avoid concurrent loads / visual flicker when data already present
-  const loadingDashboardsRef = useRef(false);
-  const loadingSharedRef = useRef(false);
-  // Sidebar rename editing state (activated by double-click or menu action)
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [pinned, setPinned] = useState<Set<string>>(new Set());
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; dashboard: DashboardItem | null }>({
     open: false,
     dashboard: null
   });
   const { user, logout } = useAuth();
   const { updateDashboardName, setCurrentDashboard } = useDashboard();
-  
+
   const collapsed = state === "collapsed";
 
   const isActive = (path: string) => {
@@ -94,205 +93,123 @@ export function AppSidebar() {
     return currentPath === path;
   };
 
+  // Load pinned from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pinned_dashboards');
+      if (raw) setPinned(new Set(JSON.parse(raw)));
+    } catch (e) {
+      console.warn('Failed to load pinned dashboards:', e);
+    }
+  }, []);
+
+  const persistPinned = (next: Set<string>) => {
+    try {
+      localStorage.setItem('pinned_dashboards', JSON.stringify(Array.from(next)));
+    } catch (e) {
+      console.warn('Failed to persist pinned dashboards:', e);
+    }
+  };
+
+  const togglePin = (id: string) => {
+    setPinned(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      persistPinned(next);
+      return next;
+    });
+  };
+
+  // Build unified dashboard list
+  const buildUnifiedList = () => {
+    const idToDash = new Map<string, DashboardItem>();
+
+    // Add owned dashboards first
+    dashboards.forEach(d => idToDash.set(d.id, { ...d, dashboardType: 'owned' }));
+
+    // Add shared dashboards, avoiding duplicates
+    sharedDashboards.forEach((d) => {
+      if (!idToDash.has(d.id)) {
+        idToDash.set(d.id, {
+          ...d,
+          dashboardType: d.owner_id === user?.id ? 'shared_by_me' : 'shared_with_me'
+        } as DashboardItem);
+      } else {
+        const existing = idToDash.get(d.id)!;
+        if (existing.dashboardType === 'owned' && d.owner_id === user?.id) {
+          idToDash.set(d.id, { ...existing, dashboardType: 'shared_by_me' });
+        }
+      }
+    });
+
+    const allDashboards = Array.from(idToDash.values());
+    const pinnedList = allDashboards.filter(d => pinned.has(d.id));
+    const unpinnedList = allDashboards.filter(d => !pinned.has(d.id));
+
+    return [...pinnedList, ...unpinnedList];
+  };
+
+  const unifiedDashboards = buildUnifiedList();
+
   // Load dashboards from API
   useEffect(() => {
     loadDashboards();
-    // Revalidar quando voltar o foco (sem flicker se já houver dados)
     const onFocus = () => loadDashboards();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-
-  // Also listen for storage changes (auth token updates)
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'auth_token' && e.newValue) {
-        console.log('Auth token updated, reloading dashboards...');
-        setTimeout(() => loadDashboards(), 1000); // Small delay to ensure API is ready
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // Expose reload functions globally for testing
-  useEffect(() => {
-    (window as any).reloadDashboards = loadDashboards;
-    (window as any).reloadSharedDashboards = loadSharedDashboards;
-    (window as any).debugSharedDashboards = async () => {
-      console.log('=== DEBUG SHARED DASHBOARDS ===');
-      console.log('Current user:', user);
-      console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
-      console.log('API Base URL:', import.meta.env.VITE_API_URL || 'default');
-      
-      // Test the specific endpoint
-      try {
-        console.log('Testing /api/dashboards/shared-with-me endpoint...');
-        const sharedWithMe = await apiClient.getSharedDashboards();
-        console.log('✅ API Response - Dashboards shared with me:', sharedWithMe);
-      } catch (error: any) {
-        console.error('❌ API Error - getSharedDashboards:', {
-          status: error.status,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      
-      // Test if regular dashboards endpoint works
-      try {
-        console.log('Testing /api/dashboards/ endpoint...');
-        const regularDashboards = await apiClient.getDashboards();
-        console.log('✅ Regular dashboards work:', regularDashboards?.length || 0, 'dashboards');
-      } catch (error: any) {
-        console.error('❌ Regular dashboards also failing:', error);
-      }
-      
-      // Test raw fetch to the endpoint
-      try {
-        console.log('Testing raw fetch to shared-with-me...');
-        const token = localStorage.getItem('auth_token');
-        const baseUrl = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${baseUrl}/api/dashboards/shared-with-me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        console.log('Raw fetch response:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Raw fetch data:', data);
-        } else {
-          const errorText = await response.text();
-          console.log('❌ Raw fetch error text:', errorText);
-        }
-      } catch (fetchError) {
-        console.error('❌ Raw fetch failed:', fetchError);
-      }
-      
-      // Test if we can see who has access to our dashboards
-      if (dashboards.length > 0) {
-        console.log('Testing dashboard sharing status for owned dashboards...');
-        for (const dashboard of dashboards) {
-          try {
-            console.log(`Checking shared users for dashboard "${dashboard.name}" (${dashboard.id})`);
-            const users = await apiClient.getDashboardSharedUsers(dashboard.id);
-            console.log(`Dashboard "${dashboard.name}" is shared with:`, users);
-          } catch (error: any) {
-            console.error(`Failed to get shared users for "${dashboard.name}":`, error);
-          }
-        }
-      }
-      
-    };
-    return () => {
-      delete (window as any).reloadDashboards;
-      delete (window as any).reloadSharedDashboards;
-      delete (window as any).debugSharedDashboards;
-    };
-  }, [user]);
-
-  // Listen for dashboard changes
-  useEffect(() => {
-    const handleDashboardsChanged = () => {
-      console.log('Dashboards changed event received, reloading...');
-      loadDashboards();
-    };
-
-    const handleSharedDashboardsChanged = () => {
-      console.log('Shared dashboards changed event received, reloading...');
+    if (user) {
       loadSharedDashboards();
-    };
-
-    window.addEventListener('dashboards-changed', handleDashboardsChanged);
-    window.addEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
-    // Invalidate queries to keep cache fresh
-    const invalidateDashboards = () => queryClient.invalidateQueries({ queryKey: ['dashboards'] });
-    const invalidateShared = () => queryClient.invalidateQueries({ queryKey: ['sharedDashboards'] });
-    window.addEventListener('dashboards-changed', invalidateDashboards);
-    window.addEventListener('shared-dashboards-changed', invalidateShared);
-    
-    return () => {
-      window.removeEventListener('dashboards-changed', handleDashboardsChanged);
-      window.removeEventListener('shared-dashboards-changed', handleSharedDashboardsChanged);
-      window.removeEventListener('dashboards-changed', invalidateDashboards);
-      window.removeEventListener('shared-dashboards-changed', invalidateShared);
-    };
-  }, []);
+    }
+  }, [user?.id, dashboards.length]);
 
   const loadDashboards = async () => {
-    if (loadingDashboardsRef.current) return;
-    loadingDashboardsRef.current = true;
     try {
       if (dashboards.length === 0) {
         setLoading(true);
       }
-      console.log('Loading dashboards...');
-      
-      // Wait a bit to ensure auth token is set
+
       let attempts = 0;
       while (!localStorage.getItem('auth_token') && attempts < 10) {
-        console.log('Waiting for auth token...');
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       }
-      
-      // Fetch with React Query cache/dedup
+
       const dashboardsData = await queryClient.fetchQuery({
         queryKey: ['dashboards'],
         queryFn: () => apiClient.getDashboards(),
         staleTime: 60_000,
         gcTime: 300_000,
       });
-      console.log('Dashboards loaded:', dashboardsData);
       setDashboards(dashboardsData || []);
-      
-      // Em produção não criar automaticamente dashboard/components
-      // O usuário deve criar manualmente
     } catch (error) {
       console.warn('Could not load dashboards:', error);
-      console.log('Skipping auto-creation of welcome dashboard');
     } finally {
       setLoading(false);
-      loadingDashboardsRef.current = false;
     }
   };
 
   const loadSharedDashboards = async () => {
-    if (loadingSharedRef.current) return;
-    loadingSharedRef.current = true;
     try {
-      if (sharedDashboards.length === 0) {
-        setSharedLoading(true);
-      }
-      console.log('Loading shared dashboards...');
-      console.log('Current user:', user);
-      console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
-
-      // Wait a bit to ensure auth token is set (avoid early 401)
       let attempts = 0;
       while (!localStorage.getItem('auth_token') && attempts < 10) {
-        console.log('Waiting for auth token for shared dashboards...');
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       }
-      
+
       const combinedShared = await queryClient.fetchQuery({
         queryKey: ['sharedDashboards', user?.id, dashboards.map(d => d.id).join(',')],
         queryFn: async () => {
-          console.log('Fetching dashboards shared with me...');
           const sharedWithMe = await apiClient.getSharedDashboards();
-          console.log('Dashboards shared with me:', sharedWithMe);
           const dashboardsIShared: any[] = [];
+
           if (dashboards.length > 0) {
-            console.log('🔍 Checking which dashboards I shared with others...');
             for (const dashboard of dashboards) {
               try {
                 const users = await apiClient.getDashboardSharedUsers(dashboard.id);
@@ -317,100 +234,10 @@ export function AppSidebar() {
         gcTime: 300_000,
       });
 
-      // For the sidebar, show dashboards shared WITH me + dashboards I shared with others
       setSharedDashboards(combinedShared || []);
-
-      console.log('📊 Summary:');
-      console.log(`📚 Total shown in sidebar: ${combinedShared?.length || 0}`);
-
     } catch (e: any) {
-      console.error('Could not load shared dashboards:', {
-        error: e,
-        status: e.status,
-        message: e.message
-      });
-
-      // Set empty array as fallback
+      console.error('Could not load shared dashboards:', e);
       setSharedDashboards([]);
-    } finally {
-      setSharedLoading(false);
-      loadingSharedRef.current = false;
-    }
-  };
-
-  // Load shared dashboards when user is available (even if no own dashboards)
-  useEffect(() => {
-    if (user && sharedOpen) {
-      loadSharedDashboards();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, dashboards.length, sharedOpen]);
-
-  const createWelcomeDashboard = async () => {
-    try {
-      console.log('Creating welcome dashboard...');
-      
-      const welcomeDashboard = await apiClient.createDashboard({
-        name: "Welcome Dashboard",
-        description: "Your first dashboard! Start building your analytics here.",
-        is_public: false
-      });
-      console.log('Welcome dashboard created:', welcomeDashboard);
-      
-      // Add welcome components
-      console.log('Creating welcome component 1...');
-      await apiClient.createComponent({
-        dashboard_id: welcomeDashboard.id,
-        name: "Welcome to DataViz Pro!",
-        type: "kpi" as const,
-        config: {
-          value: "Welcome!",
-          change: "Get Started",
-          changeType: "increase",
-          icon: "trending-up",
-          description: "Start creating your first dashboard components"
-        },
-        position_x: 0,
-        position_y: 0,
-        width: 6,
-        height: 3
-      });
-
-      console.log('Creating welcome component 2...');
-      await apiClient.createComponent({
-        dashboard_id: welcomeDashboard.id,
-        name: "Quick Stats",
-        type: "kpi" as const,
-        config: {
-          value: "1",
-          unit: "",
-          change: "+100%",
-          changeType: "increase",
-          icon: "target",
-          description: "Dashboard created successfully"
-        },
-        position_x: 6,
-        position_y: 0,
-        width: 3,
-        height: 3
-      });
-      
-      console.log('Welcome dashboard setup complete');
-      setDashboards([welcomeDashboard]);
-      
-      toast({
-        title: "Welcome! 🎉",
-        description: "Your first dashboard has been created. Start adding components!",
-      });
-      
-      return welcomeDashboard;
-    } catch (error) {
-      console.error('Failed to create welcome dashboard:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create welcome dashboard. Please try refreshing the page.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -421,15 +248,14 @@ export function AppSidebar() {
         description: "New dashboard ready for customization",
         is_public: false
       });
-      
+
       setDashboards(prev => [...prev, newDashboard]);
-      
+
       toast({
         title: "Dashboard Created",
         description: "New dashboard created successfully!",
       });
-      
-      // Navigate to new dashboard
+
       setCurrentDashboard(newDashboard);
       navigate(`/dashboard/${newDashboard.id}`);
     } catch (error) {
@@ -445,7 +271,7 @@ export function AppSidebar() {
   const handleDeleteDashboard = (dashboardId: string, dashboardName: string) => {
     const dashboard = dashboards.find(d => d.id === dashboardId);
     if (!dashboard) return;
-    
+
     setDeleteModal({
       open: true,
       dashboard
@@ -454,11 +280,10 @@ export function AppSidebar() {
 
   const handleConfirmDelete = async () => {
     if (!deleteModal.dashboard) return;
-    
+
     const { id: dashboardId, name: dashboardName } = deleteModal.dashboard;
-    
+
     try {
-      // Check if this is the last dashboard
       if (dashboards.length <= 1) {
         toast({
           title: "Cannot Delete Dashboard",
@@ -468,37 +293,26 @@ export function AppSidebar() {
         return;
       }
 
-      console.log(`Deleting dashboard: ${dashboardName} (${dashboardId})`);
-      
       await apiClient.deleteDashboard(dashboardId);
-      
-      // Calculate remaining dashboards before updating state
+
       const remainingDashboards = dashboards.filter(d => d.id !== dashboardId);
-      
-      // Remove from local state
       setDashboards(remainingDashboards);
-      
-      // If we're currently on the deleted dashboard, navigate to the next available dashboard
+
       const currentPath = location.pathname;
       if (currentPath === `/dashboard/${dashboardId}` || currentPath === `/`) {
         if (remainingDashboards.length > 0) {
-          // Find a good candidate for redirection - prefer the next dashboard in the list
-          const deletedIndex = dashboards.findIndex(d => d.id === dashboardId);
-          const nextDashboard = remainingDashboards[deletedIndex] || remainingDashboards[deletedIndex - 1] || remainingDashboards[0];
-          
-          // Update dashboard context before navigation
+          const nextDashboard = remainingDashboards[0];
           if (nextDashboard) {
             setCurrentDashboard(nextDashboard);
             navigate(`/dashboard/${nextDashboard.id}`);
           }
         }
       }
-      
+
       toast({
         title: "Dashboard Deleted",
         description: `"${dashboardName}" has been deleted successfully.`,
       });
-      
     } catch (error: any) {
       console.error('Failed to delete dashboard:', error);
       toast({
@@ -517,9 +331,7 @@ export function AppSidebar() {
     try {
       const finalName = newName.trim() || 'Untitled Dashboard';
       await apiClient.updateDashboard(dashboardId, { name: finalName });
-      // Update local list
       setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, name: finalName } : d));
-      // Update context if this dashboard is active
       updateDashboardName(dashboardId, finalName);
     } catch (error: any) {
       console.error('Failed to rename dashboard:', error);
@@ -552,9 +364,9 @@ export function AppSidebar() {
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
             <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
-              <img 
-                src={datavizLogo} 
-                alt="DataViz Logo" 
+              <img
+                src={datavizLogo}
+                alt="DataViz Logo"
                 className="w-full h-full object-contain"
               />
             </div>
@@ -573,198 +385,171 @@ export function AppSidebar() {
             <SidebarGroupLabel>
               <button
                 onClick={() => setDashboardsOpen(!dashboardsOpen)}
-                className="flex items-center justify-between w-full text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                className="flex items-center justify-between w-full text-sidebar-foreground/70 hover:text-sidebar-foreground cursor-pointer"
               >
-                <span>My Dashboards</span>
+                <span>Dashboards</span>
                 <ChevronDown className={cn(
                   "w-4 h-4 transition-transform",
                   !dashboardsOpen && "-rotate-90"
                 )} />
               </button>
             </SidebarGroupLabel>
-            
             {dashboardsOpen && (
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {loading && dashboards.length === 0 ? (
+                  {loading && unifiedDashboards.length === 0 ? (
                     <SidebarMenuItem>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
                         <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full animate-pulse" />
                         <span>Loading dashboards...</span>
                       </div>
                     </SidebarMenuItem>
-                  ) : dashboards.length === 0 ? (
+                  ) : unifiedDashboards.length === 0 ? (
                     <SidebarMenuItem>
-                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
-                        <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full" />
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-sidebar-foreground/70 w-full">
                         <span>No dashboards yet</span>
+                        <Button size="sm" variant="ghost" className="h-7" onClick={handleNewDashboard}>
+                          <Plus className="w-3 h-3 mr-1" /> Create
+                        </Button>
                       </div>
                     </SidebarMenuItem>
                   ) : (
-                    dashboards.map((dashboard) => (
-                      <SidebarMenuItem key={dashboard.id}>
-                        <div className="flex items-center justify-between w-full group">
-                          {editingDashboard === dashboard.id ? (
-                            <div className="flex items-center gap-2 flex-1 px-3 py-2">
-                              <div className="w-2 h-2 bg-chart-1 rounded-full" />
-                              <div className="flex-1 min-w-0">
+                    <>
+                      {/* Simple unified dashboard list */}
+                      {unifiedDashboards.map((dashboard) => {
+                        const isPinned = dashboard.is_pinned;
+                        const canEdit = dashboard.is_owner || dashboard.user_permissions.includes('edit');
+
+                        // Get sharing info using backend flags
+                        const getShareInfo = () => {
+                          if (dashboard.is_shared_with_me) {
+                            return {
+                              type: 'shared_with_me',
+                              text: `Shared by ${dashboard.shared_by || 'someone'}`,
+                              dot: 'bg-blue-500',
+                              icon: <Users className="w-3 h-3 text-blue-500/70" />
+                            };
+                          } else if (dashboard.is_shared_by_me) {
+                            const userCount = dashboard.shared_users_count;
+                            return {
+                              type: 'shared_by_me',
+                              text: `Shared with ${userCount} user${userCount !== 1 ? 's' : ''}`,
+                              dot: 'bg-emerald-500',
+                              icon: <Share2 className="w-3 h-3 text-emerald-500/70" />
+                            };
+                          }
+
+                          return {
+                            type: 'private',
+                            text: 'Private dashboard',
+                            dot: 'bg-sidebar-foreground/20',
+                            icon: null
+                          };
+                        };
+
+                        const shareInfo = getShareInfo();
+
+                        return (
+                          <SidebarMenuItem key={dashboard.id}>
+                            {editingDashboard === dashboard.id && canEdit ? (
+                              <div className="px-3 py-2">
                                 <NotionEditableText
                                   value={editingName}
                                   onChange={(val) => saveRenameAndExit(dashboard.id, val)}
                                   placeholder="Untitled Dashboard"
-                                  className="truncate text-left"
+                                  className="text-sm"
                                   maxLength={100}
                                   autoSave={false}
                                 />
                               </div>
-                            </div>
-                          ) : (
-                            <SidebarMenuButton asChild className="flex-1">
-                              <NavLink
-                                to={`/dashboard/${dashboard.id}`}
-                                onClick={() => { setCurrentDashboard(dashboard); localStorage.setItem('last_dashboard_id', dashboard.id); }}
-                                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(dashboard.id, dashboard.name); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1 cursor-pointer",
-                                  isActive(`/dashboard/${dashboard.id}`)
-                                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-                                )}
-                                title={dashboard.name}
-                              >
-                                <div className="w-2 h-2 bg-chart-1 rounded-full" />
-                                <span className="truncate">{dashboard.name}</span>
-                              </NavLink>
-                            </SidebarMenuButton>
-                          )}
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <MoreHorizontal className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem onClick={() => startRename(dashboard.id, dashboard.name)}>
-                                <Edit className="h-3 w-3 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteDashboard(dashboard.id, dashboard.name)}
-                                disabled={dashboards.length <= 1}
-                                className={cn(
-                                  "text-destructive focus:text-destructive",
-                                  dashboards.length <= 1 && "opacity-50 cursor-not-allowed"
-                                )}
-                              >
-                                <Trash2 className="h-3 w-3 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </SidebarMenuItem>
-                    ))
-                  )}
-                  
-                  <SidebarMenuItem>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleNewDashboard}
-                      className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>New Dashboard</span>
-                    </Button>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            )}
-          </SidebarGroup>
-        )}
-
-        {/* Shared Dashboards Section */}
-        {!collapsed && (
-          <SidebarGroup>
-            <SidebarGroupLabel>
-              <button
-                onClick={() => setSharedOpen(!sharedOpen)}
-                className="flex items-center justify-between w-full text-sidebar-foreground/70 hover:text-sidebar-foreground"
-              >
-                <span>Shared Dashboards</span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 transition-transform",
-                  !sharedOpen && "-rotate-90"
-                )} />
-              </button>
-            </SidebarGroupLabel>
-            {sharedOpen && (
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {sharedLoading && sharedDashboards.length === 0 ? (
-                    <SidebarMenuItem>
-                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
-                        <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full animate-pulse" />
-                        <span>Loading shared dashboards...</span>
-                      </div>
-                    </SidebarMenuItem>
-                  ) : sharedDashboards.length === 0 ? (
-                    <SidebarMenuItem>
-                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/70">
-                        <div className="w-2 h-2 bg-sidebar-foreground/20 rounded-full" />
-                        <span>No shared dashboards</span>
-                      </div>
-                    </SidebarMenuItem>
-                  ) : (
-                    sharedDashboards.map((dashboard) => (
-                      <SidebarMenuItem key={`shared-${dashboard.id}`}>
-                        <SidebarMenuButton asChild className="flex-1">
-                          <NavLink
-                            to={`/dashboard/${dashboard.id}`}
-                            onClick={() => { setCurrentDashboard({
-                              id: dashboard.id,
-                              name: dashboard.name,
-                              description: dashboard.description,
-                              owner_id: dashboard.owner_id,
-                              created_at: new Date().toISOString(),
-                              updated_at: new Date().toISOString(),
-                            } as any); localStorage.setItem('last_dashboard_id', dashboard.id); }}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm flex-1",
-                              isActive(`/dashboard/${dashboard.id}`)
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                            ) : (
+                              <SidebarMenuButton asChild>
+                                <NavLink
+                                  to={`/dashboard/${dashboard.id}`}
+                                  onClick={() => {
+                                    setCurrentDashboard(dashboard as any);
+                                    localStorage.setItem('last_dashboard_id', dashboard.id);
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    if (canEdit) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      startRename(dashboard.id, dashboard.name);
+                                    }
+                                  }}
+                                  className={cn(
+                                    "group flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm",
+                                    isActive(`/dashboard/${dashboard.id}`)
+                                      ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
+                                  )}
+                                  title={shareInfo.text}
+                                >
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${shareInfo.dot}`} />
+                                    <span className="truncate">{dashboard.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {shareInfo.icon && shareInfo.icon}
+                                    {isPinned && <Pin className="w-3 h-3 text-sidebar-foreground/50" />}
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <MoreHorizontal className="h-3 w-3" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-44">
+                                        {canEdit && (
+                                          <DropdownMenuItem onClick={() => startRename(dashboard.id, dashboard.name)} className="cursor-pointer">
+                                            <Edit className="h-3 w-3 mr-2" />
+                                            Rename
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem onClick={() => togglePin(dashboard.id, isPinned)} className="cursor-pointer">
+                                          {isPinned ? <PinOff className="h-3 w-3 mr-2" /> : <Pin className="h-3 w-3 mr-2" />}
+                                          {isPinned ? 'Unpin' : 'Pin to top'}
+                                        </DropdownMenuItem>
+                                        {dashboard.is_owner && (
+                                          <DropdownMenuItem
+                                            onClick={() => handleDeleteDashboard(dashboard.id, dashboard.name)}
+                                            disabled={dashboards.filter(d => d.is_owner).length <= 1}
+                                            className={cn(
+                                              "text-destructive focus:text-destructive cursor-pointer",
+                                              dashboards.filter(d => d.is_owner).length <= 1 && "opacity-50 cursor-not-allowed"
+                                            )}
+                                          >
+                                            <Trash2 className="h-3 w-3 mr-2" />
+                                            Delete
+                                          </DropdownMenuItem>
+                                        )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </NavLink>
+                              </SidebarMenuButton>
                             )}
-                            title={dashboard.name}
-                          >
-                            <div className="w-2 h-2 bg-chart-2 rounded-full" />
-                            <span className="truncate">{dashboard.name}</span>
-                            <span
-                              className={cn(
-                                "ml-auto text-[10px] px-1.5 py-0.5 rounded-full",
-                                (user && dashboard.owner_id === user.id)
-                                  ? "bg-blue-100 text-blue-700"
-                                  : (dashboard.permissions?.includes('edit')
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-gray-200 text-gray-700")
-                              )}
-                              title={(user && dashboard.owner_id === user.id)
-                                ? "Owner"
-                                : (dashboard.permissions?.includes('edit') ? "Can edit" : "View only")}
-                            >
-                              {(user && dashboard.owner_id === user.id)
-                                ? "Owner"
-                                : (dashboard.permissions?.includes('edit') ? "Edit" : "View")}
-                            </span>
-                          </NavLink>
-                        </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+
+                      {/* New Dashboard Button */}
+                      <SidebarMenuItem>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleNewDashboard}
+                          className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>New Dashboard</span>
+                        </Button>
                       </SidebarMenuItem>
-                    ))
+                    </>
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -804,8 +589,8 @@ export function AppSidebar() {
             <div className="p-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full p-2 h-auto justify-start hover:bg-sidebar-accent"
                   >
                     <div className="flex items-center gap-2 w-full">
@@ -838,7 +623,7 @@ export function AppSidebar() {
               </DropdownMenu>
             </div>
           )}
-          
+
           <div className="p-2">
             <SidebarTrigger className="w-full" />
           </div>
