@@ -418,7 +418,7 @@ export function AppSidebar() {
                       {/* Simple unified dashboard list */}
                       {unifiedDashboards.map((dashboard) => {
                         const isPinned = dashboard.is_pinned;
-                        const canEdit = dashboard.is_owner || dashboard.user_permissions.includes('edit');
+                        const canEdit = dashboard.is_owner || (dashboard.user_permissions && dashboard.user_permissions.includes('edit'));
 
                         // Get sharing info using backend flags
                         const getShareInfo = () => {
