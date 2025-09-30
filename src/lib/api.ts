@@ -154,6 +154,23 @@ class ApiClient {
     return this.request<Dashboard[]>('/api/dashboards/accessible');
   }
 
+  async getDashboardsComplete() {
+    return this.request<{
+      dashboards: {
+        owned: Dashboard[];
+        shared_with_me: Dashboard[];
+        all_unified: Array<Dashboard & {
+          is_owner: boolean;
+          is_shared_with_me: boolean;
+          is_shared_by_me: boolean;
+          user_permissions: string[];
+          shared_by?: string;
+          shared_users_count?: number;
+        }>;
+      };
+    }>('/api/dashboards-complete');
+  }
+
   async getDashboard(id: string) {
     return this.request<Dashboard>(`/api/dashboards/${id}`);
   }

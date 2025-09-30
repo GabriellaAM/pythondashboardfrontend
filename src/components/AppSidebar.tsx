@@ -54,6 +54,13 @@ interface DashboardItem {
   created_at: string;
   updated_at: string;
   dashboardType?: 'owned' | 'shared_with_me' | 'shared_by_me';
+  is_owner?: boolean;
+  is_shared_with_me?: boolean;
+  is_shared_by_me?: boolean;
+  user_permissions?: string[];
+  shared_by?: string;
+  shared_users_count?: number;
+  is_pinned?: boolean;
 }
 
 export function AppSidebar() {
@@ -64,15 +71,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const [dashboardsOpen, setDashboardsOpen] = useState(true);
   const [dashboards, setDashboards] = useState<DashboardItem[]>([]);
-  const [sharedDashboards, setSharedDashboards] = useState<Array<{
-    id: string;
-    name: string;
-    description?: string;
-    owner_id: string;
-    permissions: string[];
-    shared_at: string;
-    shared_by: string;
-  }>>([]);
   const [loading, setLoading] = useState(true);
   const [editingDashboard, setEditingDashboard] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -124,36 +122,12 @@ export function AppSidebar() {
     });
   };
 
-  // Build unified dashboard list
-  const buildUnifiedList = () => {
-    const idToDash = new Map<string, DashboardItem>();
-
-    // Add owned dashboards first
-    dashboards.forEach(d => idToDash.set(d.id, { ...d, dashboardType: 'owned' }));
-
-    // Add shared dashboards, avoiding duplicates
-    sharedDashboards.forEach((d) => {
-      if (!idToDash.has(d.id)) {
-        idToDash.set(d.id, {
-          ...d,
-          dashboardType: d.owner_id === user?.id ? 'shared_by_me' : 'shared_with_me'
-        } as DashboardItem);
-      } else {
-        const existing = idToDash.get(d.id)!;
-        if (existing.dashboardType === 'owned' && d.owner_id === user?.id) {
-          idToDash.set(d.id, { ...existing, dashboardType: 'shared_by_me' });
-        }
-      }
-    });
-
-    const allDashboards = Array.from(idToDash.values());
-    const pinnedList = allDashboards.filter(d => pinned.has(d.id));
-    const unpinnedList = allDashboards.filter(d => !pinned.has(d.id));
-
+  // Build unified dashboard list (já vem unificado do backend)
+  const unifiedDashboards = (() => {
+    const pinnedList = dashboards.filter(d => pinned.has(d.id));
+    const unpinnedList = dashboards.filter(d => !pinned.has(d.id));
     return [...pinnedList, ...unpinnedList];
-  };
-
-  const unifiedDashboards = buildUnifiedList();
+  })();
 
   // Load dashboards from API
   useEffect(() => {
@@ -162,12 +136,6 @@ export function AppSidebar() {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      loadSharedDashboards();
-    }
-  }, [user?.id, dashboards.length]);
 
   const loadDashboards = async () => {
     try {
@@ -181,63 +149,31 @@ export function AppSidebar() {
         attempts++;
       }
 
-      const dashboardsData = await queryClient.fetchQuery({
-        queryKey: ['dashboards'],
-        queryFn: () => apiClient.getDashboards(),
+      // ✅ USAR ENDPOINT CORRETO
+      const response = await queryClient.fetchQuery({
+        queryKey: ['dashboards-complete'],
+        queryFn: () => apiClient.getDashboardsComplete(),
         staleTime: 60_000,
         gcTime: 300_000,
       });
-      setDashboards(dashboardsData || []);
+
+      // Usar all_unified que contém todos os dashboards com flags corretos
+      const allDashboards = response.dashboards.all_unified || [];
+      setDashboards(allDashboards as any);
+
+      // Debug temporário para verificar os flags
+      console.log('🔍 Dashboard Debug:', allDashboards.map(d => ({
+        name: d.name,
+        is_owner: d.is_owner,
+        is_shared_with_me: d.is_shared_with_me,
+        is_shared_by_me: d.is_shared_by_me,
+        permissions: d.user_permissions,
+        should_show_shared_icon: d.is_shared_with_me
+      })));
     } catch (error) {
       console.warn('Could not load dashboards:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadSharedDashboards = async () => {
-    try {
-      let attempts = 0;
-      while (!localStorage.getItem('auth_token') && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-
-      const combinedShared = await queryClient.fetchQuery({
-        queryKey: ['sharedDashboards', user?.id, dashboards.map(d => d.id).join(',')],
-        queryFn: async () => {
-          const sharedWithMe = await apiClient.getSharedDashboards();
-          const dashboardsIShared: any[] = [];
-
-          if (dashboards.length > 0) {
-            for (const dashboard of dashboards) {
-              try {
-                const users = await apiClient.getDashboardSharedUsers(dashboard.id);
-                if (users.length > 0) {
-                  dashboardsIShared.push({
-                    ...dashboard,
-                    owner_id: user?.id,
-                    permissions: ['edit'],
-                    shared_at: users?.[0]?.shared_at || new Date().toISOString(),
-                    shared_by: user?.full_name || user?.email || 'Me',
-                    sharedUsers: users
-                  });
-                }
-              } catch (error) {
-                console.warn(`Failed to check sharing for dashboard ${dashboard.id}:`, error);
-              }
-            }
-          }
-          return [...(sharedWithMe || []), ...dashboardsIShared];
-        },
-        staleTime: 60_000,
-        gcTime: 300_000,
-      });
-
-      setSharedDashboards(combinedShared || []);
-    } catch (e: any) {
-      console.error('Could not load shared dashboards:', e);
-      setSharedDashboards([]);
     }
   };
 
@@ -417,37 +353,43 @@ export function AppSidebar() {
                     <>
                       {/* Simple unified dashboard list */}
                       {unifiedDashboards.map((dashboard) => {
-                        const isPinned = dashboard.is_pinned;
+                        const isPinned = pinned.has(dashboard.id);
                         const canEdit = dashboard.is_owner || (dashboard.user_permissions && dashboard.user_permissions.includes('edit'));
 
-                        // Get sharing info using backend flags
-                        const getShareInfo = () => {
+                        // 🎨 FUNÇÕES DE IDENTIFICAÇÃO VISUAL
+                        const getDashboardIcon = () => {
                           if (dashboard.is_shared_with_me) {
-                            return {
-                              type: 'shared_with_me',
-                              text: `Shared by ${dashboard.shared_by || 'someone'}`,
-                              dot: 'bg-blue-500',
-                              icon: <Users className="w-3 h-3 text-blue-500/70" />
-                            };
-                          } else if (dashboard.is_shared_by_me) {
-                            const userCount = dashboard.shared_users_count;
-                            return {
-                              type: 'shared_by_me',
-                              text: `Shared with ${userCount} user${userCount !== 1 ? 's' : ''}`,
-                              dot: 'bg-emerald-500',
-                              icon: <Share2 className="w-3 h-3 text-emerald-500/70" />
-                            };
+                            return <Users className="w-3.5 h-3.5 text-blue-500" title="Compartilhado comigo" />;
+                          } else if (dashboard.is_owner) {
+                            return <span className="text-sm" title="Proprietário">👑</span>;
                           }
-
-                          return {
-                            type: 'private',
-                            text: 'Private dashboard',
-                            dot: 'bg-sidebar-foreground/20',
-                            icon: null
-                          };
+                          return null;
                         };
 
-                        const shareInfo = getShareInfo();
+                        const getDashboardDotColor = () => {
+                          if (dashboard.is_shared_with_me) {
+                            return "bg-blue-500"; // Azul para compartilhado comigo
+                          } else if (dashboard.is_owner) {
+                            return "bg-emerald-500"; // Verde para próprio
+                          }
+                          return "bg-sidebar-foreground/20"; // Cinza default
+                        };
+
+                        const getDashboardPermissionText = () => {
+                          if (dashboard.is_shared_with_me) {
+                            const perms = dashboard.user_permissions || [];
+                            if (perms.includes('edit')) return "Pode editar";
+                            return "Apenas visualizar";
+                          }
+                          if (dashboard.is_owner) return "Proprietário";
+                          return "Dashboard";
+                        };
+
+                        const shareInfo = {
+                          icon: getDashboardIcon(),
+                          dot: getDashboardDotColor(),
+                          text: getDashboardPermissionText()
+                        };
 
                         return (
                           <SidebarMenuItem key={dashboard.id}>
@@ -487,10 +429,10 @@ export function AppSidebar() {
                                 >
                                   <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${shareInfo.dot}`} />
+                                    {shareInfo.icon && <span className="flex-shrink-0">{shareInfo.icon}</span>}
                                     <span className="truncate">{dashboard.name}</span>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {shareInfo.icon && shareInfo.icon}
                                     {isPinned && <Pin className="w-3 h-3 text-sidebar-foreground/50" />}
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
@@ -510,7 +452,7 @@ export function AppSidebar() {
                                             Rename
                                           </DropdownMenuItem>
                                         )}
-                                        <DropdownMenuItem onClick={() => togglePin(dashboard.id, isPinned)} className="cursor-pointer">
+                                        <DropdownMenuItem onClick={() => togglePin(dashboard.id)} className="cursor-pointer">
                                           {isPinned ? <PinOff className="h-3 w-3 mr-2" /> : <Pin className="h-3 w-3 mr-2" />}
                                           {isPinned ? 'Unpin' : 'Pin to top'}
                                         </DropdownMenuItem>
