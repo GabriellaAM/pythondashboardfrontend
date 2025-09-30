@@ -149,29 +149,64 @@ export function AppSidebar() {
         attempts++;
       }
 
-      // ✅ USAR ENDPOINT CORRETO
-      const response = await queryClient.fetchQuery({
-        queryKey: ['dashboards-complete'],
-        queryFn: () => apiClient.getDashboardsComplete(),
+      // Carregar dashboards próprios
+      const ownedDashboards = await queryClient.fetchQuery({
+        queryKey: ['dashboards'],
+        queryFn: () => apiClient.getDashboards(),
         staleTime: 60_000,
         gcTime: 300_000,
       });
 
-      // Usar all_unified que contém todos os dashboards com flags corretos
-      const allDashboards = response.dashboards.all_unified || [];
-      setDashboards(allDashboards as any);
+      // Carregar dashboards compartilhados
+      const sharedDashboards = await queryClient.fetchQuery({
+        queryKey: ['sharedDashboards'],
+        queryFn: () => apiClient.getSharedDashboards(),
+        staleTime: 60_000,
+        gcTime: 300_000,
+      });
 
-      // Debug temporário para verificar os flags
+      console.log('📊 Owned dashboards:', ownedDashboards);
+      console.log('🤝 Shared dashboards:', sharedDashboards);
+
+      // Combinar e adicionar flags manualmente
+      const ownedWithFlags = (ownedDashboards || []).map(d => ({
+        ...d,
+        is_owner: true,
+        is_shared_with_me: false,
+        is_shared_by_me: false,
+        user_permissions: ['view', 'edit', 'delete']
+      }));
+
+      const sharedWithFlags = (sharedDashboards || []).map(d => ({
+        ...d,
+        is_owner: false,
+        is_shared_with_me: true,
+        is_shared_by_me: false,
+        user_permissions: d.permissions || ['view']
+      }));
+
+      // Unificar sem duplicatas
+      const allDashboards = [...ownedWithFlags];
+      sharedWithFlags.forEach(shared => {
+        if (!allDashboards.find(d => d.id === shared.id)) {
+          allDashboards.push(shared);
+        }
+      });
+
+      console.log('✅ Total unified dashboards:', allDashboards.length);
       console.log('🔍 Dashboard Debug:', allDashboards.map(d => ({
+        id: d.id,
         name: d.name,
         is_owner: d.is_owner,
         is_shared_with_me: d.is_shared_with_me,
-        is_shared_by_me: d.is_shared_by_me,
         permissions: d.user_permissions,
-        should_show_shared_icon: d.is_shared_with_me
+        shared_by: d.shared_by
       })));
+
+      setDashboards(allDashboards as any);
     } catch (error) {
-      console.warn('Could not load dashboards:', error);
+      console.error('Could not load dashboards:', error);
+      setDashboards([]);
     } finally {
       setLoading(false);
     }
@@ -358,22 +393,22 @@ export function AppSidebar() {
 
                         // 🎨 FUNÇÕES DE IDENTIFICAÇÃO VISUAL
                         const getDashboardDotColor = () => {
-                          if (dashboard.is_shared_with_me) {
+                          if (dashboard.is_shared_with_me === true) {
                             return "bg-blue-500"; // Azul para compartilhado comigo
-                          } else if (dashboard.is_owner) {
+                          } else if (dashboard.is_owner === true) {
                             return "bg-emerald-500"; // Verde para próprio
                           }
                           return "bg-sidebar-foreground/20"; // Cinza default
                         };
 
                         const getDashboardPermissionText = () => {
-                          if (dashboard.is_shared_with_me) {
+                          if (dashboard.is_shared_with_me === true) {
                             const perms = dashboard.user_permissions || [];
                             const sharedBy = dashboard.shared_by ? ` por ${dashboard.shared_by}` : '';
                             if (perms.includes('edit')) return `Compartilhado${sharedBy} - Pode editar`;
                             return `Compartilhado${sharedBy} - Apenas visualizar`;
                           }
-                          if (dashboard.is_owner) return "Proprietário";
+                          if (dashboard.is_owner === true) return "Proprietário";
                           return "Dashboard";
                         };
 
