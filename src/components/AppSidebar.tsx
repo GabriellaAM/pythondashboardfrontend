@@ -357,15 +357,6 @@ export function AppSidebar() {
                         const canEdit = dashboard.is_owner || (dashboard.user_permissions && dashboard.user_permissions.includes('edit'));
 
                         // 🎨 FUNÇÕES DE IDENTIFICAÇÃO VISUAL
-                        const getDashboardIcon = () => {
-                          if (dashboard.is_shared_with_me) {
-                            return <Users className="w-3.5 h-3.5 text-blue-500" title="Compartilhado comigo" />;
-                          } else if (dashboard.is_owner) {
-                            return <span className="text-sm" title="Proprietário">👑</span>;
-                          }
-                          return null;
-                        };
-
                         const getDashboardDotColor = () => {
                           if (dashboard.is_shared_with_me) {
                             return "bg-blue-500"; // Azul para compartilhado comigo
@@ -378,15 +369,15 @@ export function AppSidebar() {
                         const getDashboardPermissionText = () => {
                           if (dashboard.is_shared_with_me) {
                             const perms = dashboard.user_permissions || [];
-                            if (perms.includes('edit')) return "Pode editar";
-                            return "Apenas visualizar";
+                            const sharedBy = dashboard.shared_by ? ` por ${dashboard.shared_by}` : '';
+                            if (perms.includes('edit')) return `Compartilhado${sharedBy} - Pode editar`;
+                            return `Compartilhado${sharedBy} - Apenas visualizar`;
                           }
                           if (dashboard.is_owner) return "Proprietário";
                           return "Dashboard";
                         };
 
                         const shareInfo = {
-                          icon: getDashboardIcon(),
                           dot: getDashboardDotColor(),
                           text: getDashboardPermissionText()
                         };
@@ -429,7 +420,6 @@ export function AppSidebar() {
                                 >
                                   <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${shareInfo.dot}`} />
-                                    {shareInfo.icon && <span className="flex-shrink-0">{shareInfo.icon}</span>}
                                     <span className="truncate">{dashboard.name}</span>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
