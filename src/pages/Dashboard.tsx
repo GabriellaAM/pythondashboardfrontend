@@ -937,46 +937,6 @@ export default function Dashboard() {
         </ResponsiveGridLayout>
       </div>
 
-      {/* Add New Component Section */}
-      <div className="mt-8">
-        <Card className="border-dashed border-2 border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors">
-          <CardContent className="flex flex-col items-center justify-center py-8 gap-4">
-            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-              <Plus className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-muted-foreground mb-4">Add New Component</p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleAddChart}
-                  className="gap-2"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Chart
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleAddTable}
-                  className="gap-2"
-                >
-                  <Table className="w-4 h-4" />
-                  Table
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleAddKPI}
-                  className="gap-2"
-                >
-                  <Target className="w-4 h-4" />
-                  KPI
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Modals */}
       <ChartModal
         open={isChartModalOpen}
