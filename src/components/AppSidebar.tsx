@@ -30,7 +30,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -600,10 +599,6 @@ export function AppSidebar() {
               </DropdownMenu>
             </div>
           )}
-
-          <div className="p-2">
-            <SidebarTrigger className="w-full" />
-          </div>
         </div>
       </SidebarContent>
 
