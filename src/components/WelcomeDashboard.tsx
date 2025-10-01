@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, BarChart3, Table, Target, Sparkles } from "lucide-react";
+import { Plus, BarChart3, Table, Target, Sparkles, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiClient } from "@/lib/api";
@@ -71,17 +71,17 @@ export function WelcomeDashboard({ onDashboardCreated }: WelcomeDashboardProps) 
       </div>
 
       {/* Welcome Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card className="shadow-soft">
           <CardHeader className="text-center pb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
               <BarChart3 className="w-6 h-6 text-blue-600" />
             </div>
-            <CardTitle className="text-lg">Create Charts</CardTitle>
+            <CardTitle className="text-lg">Charts</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground text-center">
-              Build beautiful visualizations with various chart types like bar, line, pie, and more.
+              Build beautiful visualizations with bar, line, pie, and more chart types.
             </p>
           </CardContent>
         </Card>
@@ -91,11 +91,11 @@ export function WelcomeDashboard({ onDashboardCreated }: WelcomeDashboardProps) 
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
               <Table className="w-6 h-6 text-green-600" />
             </div>
-            <CardTitle className="text-lg">Data Tables</CardTitle>
+            <CardTitle className="text-lg">Tables</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground text-center">
-              Display your data in organized, interactive tables with sorting and filtering.
+              Display data in organized, interactive tables with sorting and filtering.
             </p>
           </CardContent>
         </Card>
@@ -110,6 +110,20 @@ export function WelcomeDashboard({ onDashboardCreated }: WelcomeDashboardProps) 
           <CardContent>
             <p className="text-sm text-muted-foreground text-center">
               Track key performance indicators with customizable metric cards.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-soft">
+          <CardHeader className="text-center pb-4">
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Type className="w-6 h-6 text-orange-600" />
+            </div>
+            <CardTitle className="text-lg">Text Blocks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground text-center">
+              Add headers, descriptions, and rich text content Notion-style.
             </p>
           </CardContent>
         </Card>

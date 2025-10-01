@@ -67,40 +67,102 @@ export default function Dashboard() {
   // Initialize dashboard selection when authenticated or when in public/share route
   useEffect(() => {
     const initializeApp = async () => {
+      console.log('🚀 initializeApp started');
       const isShare = location.pathname.startsWith('/share/');
       const isPublic = location.pathname.startsWith('/public/');
       setIsReadOnly(isShare || isPublic);
-      if (!isAuthenticated && !isShare && !isPublic) return;
+
+      console.log('📍 Auth status:', { isAuthenticated, isShare, isPublic });
+
+      if (!isAuthenticated && !isShare && !isPublic) {
+        console.log('❌ Not authenticated and not in share/public route, exiting');
+        return;
+      }
 
       // Set dashboard ID
       let dashId = dashboardId;
 
-      // If we have a dashboard ID from URL, use it directly
-      if (dashId) {
-        setCurrentDashboardId(dashId);
-        return;
+      // NOVA LÓGICA: Se temos dashboard ID na URL, verificar se ele existe
+      if (dashId && !isShare && !isPublic) {
+        console.log('🔍 Dashboard ID from URL, need to validate:', dashId);
+
+        // Buscar lista de dashboards acessíveis primeiro
+        try {
+          const ownedDashboards = await apiClient.getDashboards();
+          const accessibleDashboards = await apiClient.getAccessibleDashboards();
+
+          const allDashboards = [...ownedDashboards, ...accessibleDashboards];
+          const dashboardExists = allDashboards.some(d => d.id === dashId);
+
+          console.log('📊 Total dashboards:', allDashboards.length);
+          console.log('✅ Dashboard exists?', dashboardExists);
+
+          if (!dashboardExists) {
+            console.log('🚫 Dashboard from URL does not exist! Redirecting...');
+
+            // Dashboard na URL não existe
+            if (allDashboards.length > 0) {
+              // Tem outros dashboards, redirecionar para o primeiro
+              const firstDash = allDashboards[0];
+              console.log('↪️ Redirecting to first available dashboard:', firstDash.id);
+              navigate(`/dashboard/${firstDash.id}`, { replace: true });
+              return;
+            } else {
+              // Não tem nenhum dashboard, mostrar welcome
+              console.log('🎉 No dashboards available, showing welcome screen');
+              localStorage.removeItem('last_dashboard_id');
+              navigate('/dashboard', { replace: true });
+              setShowWelcome(true);
+              setLoading(false);
+              return;
+            }
+          }
+
+          // Dashboard existe, pode continuar
+          console.log('✅ Dashboard validated, loading:', dashId);
+          setCurrentDashboardId(dashId);
+          return;
+        } catch (error) {
+          console.error('⚠️ Error validating dashboard:', error);
+          // Em caso de erro, limpar e mostrar welcome
+          localStorage.removeItem('last_dashboard_id');
+          navigate('/dashboard', { replace: true });
+          setShowWelcome(true);
+          setLoading(false);
+          return;
+        }
       }
 
       // Only search for a dashboard if we don't have one and we're not in a share route
       if (!isShare && !dashId) {
+        console.log('🔍 Searching for dashboards (no ID in URL)...');
+
         // Preferir o primeiro dashboard PRÓPRIO do usuário
         try {
           const ownedDashboards = await apiClient.getDashboards();
+          console.log('📊 Owned dashboards:', ownedDashboards?.length || 0);
+
           if (ownedDashboards && ownedDashboards.length > 0) {
             const firstOwned = ownedDashboards[0];
             dashId = firstOwned.id;
+            console.log('✅ Using first owned dashboard:', dashId);
             setCurrentDashboardId(dashId);
             setShowWelcome(false);
             navigate(`/dashboard/${dashId}`, { replace: true });
             return;
+          } else {
+            // No owned dashboards - check if there are shared dashboards
+            console.log('❌ No owned dashboards found, checking shared dashboards...');
           }
         } catch (error) {
-          console.warn('Could not load owned dashboards:', error);
+          console.warn('⚠️ Could not load owned dashboards:', error);
         }
 
         // Fallback: usar o primeiro dashboard ACESSÍVEL (own/public/shared)
         try {
           const dashboards = await apiClient.getAccessibleDashboards();
+          console.log('📊 Accessible dashboards:', dashboards?.length || 0);
+
           if (dashboards && dashboards.length > 0) {
             let accessibleDashboard = null;
             for (const dashboard of dashboards) {
@@ -110,16 +172,17 @@ export default function Dashboard() {
                 await apiClient.getDashboardComponents(dashboard.id);
                 await apiClient.getDashboardBlocks(dashboard.id);
                 accessibleDashboard = dashboard;
+                console.log('✅ Found accessible dashboard:', dashboard.id);
                 break;
               } catch (testError) {
-                console.warn(`Dashboard ${dashboard.id} not fully accessible:`, testError);
+                console.warn(`⚠️ Dashboard ${dashboard.id} not fully accessible:`, testError);
                 continue;
               }
             }
 
             if (accessibleDashboard) {
               dashId = accessibleDashboard.id;
-              console.log('Using first accessible dashboard:', dashId);
+              console.log('✅ Using first accessible dashboard:', dashId);
               setCurrentDashboardId(dashId);
               localStorage.setItem('last_dashboard_id', dashId);
               setShowWelcome(false);
@@ -128,12 +191,23 @@ export default function Dashboard() {
             }
           }
 
-          console.log('No accessible dashboards found, showing welcome screen');
+          // No dashboards at all - show welcome screen for new users
+          console.log('🎉 No dashboards found (owned or shared), showing WELCOME SCREEN');
+
+          // Limpar localStorage de dashboard antigo
+          localStorage.removeItem('last_dashboard_id');
+
           setShowWelcome(true);
           setLoading(false);
           return;
         } catch (error) {
-          console.warn('Could not load accessible dashboards:', error);
+          console.warn('⚠️ Could not load accessible dashboards:', error);
+          // On error, assume new user and show welcome
+          console.log('🎉 Error loading dashboards, showing WELCOME SCREEN for safety');
+
+          // Limpar localStorage de dashboard antigo
+          localStorage.removeItem('last_dashboard_id');
+
           setShowWelcome(true);
           setLoading(false);
           return;
@@ -154,6 +228,8 @@ export default function Dashboard() {
     if (isShare || isPublic) {
       loadDashboard();
     } else if (currentDashboardId && isAuthenticated) {
+      // Verificar se o dashboard realmente existe antes de tentar carregar
+      console.log('🔄 Attempting to load dashboard:', currentDashboardId);
       loadDashboard();
     }
   }, [currentDashboardId, isAuthenticated, location.pathname, shareToken]);
@@ -298,8 +374,24 @@ export default function Dashboard() {
         console.error('Failed to load components from backend:', error);
         setComponents([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading dashboard:', error);
+
+      // Se for 403 (Forbidden) ou 404, o dashboard não existe mais
+      if (error?.status === 403 || error?.status === 404) {
+        console.log('🚫 Dashboard not accessible (403/404), showing welcome screen');
+
+        // Limpar estado e localStorage
+        setCurrentDashboardId(null);
+        setCurrentDashboard(null);
+        localStorage.removeItem('last_dashboard_id');
+
+        // Mostrar welcome screen
+        setShowWelcome(true);
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Error",
         description: "Failed to load dashboard",

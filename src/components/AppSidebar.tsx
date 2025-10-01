@@ -377,11 +377,8 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   ) : unifiedDashboards.length === 0 ? (
                     <SidebarMenuItem>
-                      <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-sidebar-foreground/70 w-full">
+                      <div className="flex items-center justify-center gap-2 px-3 py-2 text-sm text-sidebar-foreground/50 w-full italic">
                         <span>No dashboards yet</span>
-                        <Button size="sm" variant="ghost" className="h-7" onClick={handleNewDashboard}>
-                          <Plus className="w-3 h-3 mr-1" /> Create
-                        </Button>
                       </div>
                     </SidebarMenuItem>
                   ) : (
@@ -420,10 +417,23 @@ export function AppSidebar() {
                         return (
                           <SidebarMenuItem key={dashboard.id}>
                             {editingDashboard === dashboard.id && canEdit ? (
-                              <div className="px-3 py-2">
+                              <div
+                                className="px-3 py-2"
+                                onBlur={(e) => {
+                                  // Salvar ao perder foco (clicar fora)
+                                  // Pequeno delay para garantir que o onChange foi processado
+                                  setTimeout(() => {
+                                    if (editingDashboard === dashboard.id) {
+                                      saveRenameAndExit(dashboard.id, editingName);
+                                    }
+                                  }, 100);
+                                }}
+                              >
                                 <NotionEditableText
                                   value={editingName}
-                                  onChange={(val) => saveRenameAndExit(dashboard.id, val)}
+                                  onChange={(val) => {
+                                    setEditingName(val);
+                                  }}
                                   placeholder="Untitled Dashboard"
                                   className="text-sm"
                                   maxLength={100}
