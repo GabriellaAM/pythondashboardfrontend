@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NotionEditableText } from "./NotionEditableText";
+import { NotionBlock, BlockType } from "./NotionBlock";
 
 interface Section {
   id: string;
@@ -40,7 +40,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
     return (
       <div className="flex items-center gap-2 py-2">
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="sm"
           onClick={handleAddHeader}
           className="gap-2 text-muted-foreground hover:text-foreground"
@@ -49,7 +49,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
           Add Header
         </Button>
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="sm"
           onClick={handleAddSubheader}
           className="gap-2 text-muted-foreground hover:text-foreground"
@@ -58,7 +58,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
           Add Subheader
         </Button>
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="sm"
           onClick={handleAddText}
           className="gap-2 text-muted-foreground hover:text-foreground"
@@ -67,7 +67,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
           Add Text
         </Button>
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="sm"
           onClick={handleAddDescription}
           className="gap-2 text-muted-foreground hover:text-foreground"
@@ -76,7 +76,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
           Add Description
         </Button>
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="sm"
           onClick={() => setShowOptions(false)}
           className="text-muted-foreground hover:text-foreground"
@@ -90,7 +90,7 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
   return (
     <Button
       variant="ghost"
-      size="sm" 
+      size="sm"
       onClick={() => setShowOptions(true)}
       className="gap-2 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
     >
@@ -103,10 +103,12 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
 interface EditableSectionProps {
   section: Section;
   onUpdate: (id: string, title: string) => void;
+  onUpdateType?: (id: string, type: BlockType) => void;
   onDelete: (id: string) => void;
+  onEnter?: (id: string) => void;
 }
 
-export function EditableSection({ section, onUpdate, onDelete }: EditableSectionProps) {
+export function EditableSection({ section, onUpdate, onUpdateType, onDelete, onEnter }: EditableSectionProps) {
   const handleUpdate = async (newTitle: string) => {
     if (!newTitle.trim()) {
       onDelete(section.id);
@@ -115,30 +117,27 @@ export function EditableSection({ section, onUpdate, onDelete }: EditableSection
     onUpdate(section.id, newTitle.trim());
   };
 
+  const handleTypeChange = async (newType: BlockType) => {
+    if (onUpdateType) {
+      onUpdateType(section.id, newType);
+    }
+  };
+
+  const handleEnter = () => {
+    if (onEnter) {
+      onEnter(section.id);
+    }
+  };
+
   return (
-    <div className="py-2">
-      <NotionEditableText
-        value={section.title}
-        onChange={handleUpdate}
-        onBlurEmpty={() => onDelete(section.id)}
-        placeholder={
-          section.type === 'header' ? "Header" :
-          section.type === 'subheader' ? "Subheader" :
-          section.type === 'description' ? "Add a description..." :
-          "Add text..."
-        }
-        className={
-          section.type === 'header' ? "text-xl font-semibold text-foreground" :
-          section.type === 'subheader' ? "text-lg font-medium text-foreground" :
-          section.type === 'description' ? "text-muted-foreground text-base leading-relaxed" :
-          "text-foreground text-base"
-        }
-        multiline={section.type === 'description' || section.type === 'text'}
-        maxLength={
-          section.type === 'header' || section.type === 'subheader' ? 100 :
-          section.type === 'description' ? 500 : 1000
-        }
-      />
-    </div>
+    <NotionBlock
+      value={section.title}
+      type={section.type}
+      onChange={handleUpdate}
+      onTypeChange={handleTypeChange}
+      onDelete={() => onDelete(section.id)}
+      onEnter={handleEnter}
+      showTypeMenu={true}
+    />
   );
 }

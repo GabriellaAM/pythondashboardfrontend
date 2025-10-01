@@ -257,6 +257,10 @@ class ApiClient {
     type: 'header' | 'subheader' | 'text' | 'description';
     content: string;
     order_index?: number;
+    position_x?: number;
+    position_y?: number;
+    width?: number;
+    height?: number;
   }) {
     return this.request<any>(`/api/dashboards/${dashboardId}/blocks`, {
       method: 'POST',
@@ -267,6 +271,10 @@ class ApiClient {
   async updateDashboardBlock(dashboardId: string, blockId: string, data: {
     type?: 'header' | 'subheader' | 'text' | 'description';
     content?: string;
+    position_x?: number;
+    position_y?: number;
+    width?: number;
+    height?: number;
   }) {
     return this.request<any>(`/api/dashboards/${dashboardId}/blocks/${blockId}`, {
       method: 'PUT',

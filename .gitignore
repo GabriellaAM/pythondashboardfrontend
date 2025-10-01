@@ -60,3 +60,7 @@ ehthumbs.db
 # Ferramentas cloud (se usar)
 .vercel/
 .netlify/
+
+# Arquivos de instruções para backend (não fazer commit)
+PROMPT_PARA_BACKEND.md
+BACKEND_*.md

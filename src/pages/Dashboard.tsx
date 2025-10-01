@@ -22,14 +22,14 @@ import { TableModal } from "@/components/TableModal";
 import { KPIModal } from "@/components/KPIModal";
 import { WelcomeDashboard } from "@/components/WelcomeDashboard";
 import { NotionEditableText } from "@/components/NotionEditableText";
-import { AddSectionButton, EditableSection } from "@/components/AddSectionButton";
+import { NotionBlock } from "@/components/NotionBlock";
 import { DashboardChart } from "@/components/DashboardChart";
 import { DashboardTable } from "@/components/DashboardTable";
 import { DashboardKPI } from "@/components/DashboardKPI";
 
 interface ComponentItem {
   id: string;
-  type: 'chart' | 'table' | 'kpi';
+  type: 'chart' | 'table' | 'kpi' | 'header' | 'subheader' | 'text' | 'description';
   title: string;
   data?: any;
   layout?: {
@@ -39,6 +39,8 @@ interface ComponentItem {
     h: number;
   };
   backendId?: string; // Real component ID from backend
+  content?: string; // For text blocks
+  blockType?: 'header' | 'subheader' | 'text' | 'description'; // For text blocks
 }
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -60,7 +62,6 @@ export default function Dashboard() {
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isKPIModalOpen, setIsKPIModalOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<ComponentItem | null>(null);
-  const [sections, setSections] = useState<Array<{ id: string; title: string; type: 'header' | 'subheader' | 'text' | 'description'; backendId?: string }>>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Initialize dashboard selection when authenticated or when in public/share route
@@ -255,37 +256,47 @@ export default function Dashboard() {
             h: comp.height || (comp.type === 'kpi' ? 2 : 4)
           }
         }));
+
+        // Load content blocks and merge with components
+        let allItems = [...mappedComponents];
+        try {
+          if (!isPublic && currentDashboardId) {
+            const blocks = await queryClient.fetchQuery({
+              queryKey: ['dashboardBlocks', currentDashboardId],
+              queryFn: () => apiClient.getDashboardBlocks(currentDashboardId),
+              staleTime: 60_000,
+              gcTime: 300_000,
+            });
+
+            // Map blocks to component items
+            const blockComponents: ComponentItem[] = blocks.map((b: any) => ({
+              id: `block-${b.id}`,
+              backendId: b.id,
+              type: b.type,
+              blockType: b.type,
+              title: b.content || '',
+              content: b.content || '',
+              layout: {
+                x: b.position_x || 0,
+                y: b.position_y || 0,
+                w: b.width || 12, // Full width by default for text blocks
+                h: b.height || 1
+              }
+            }));
+
+            allItems = [...mappedComponents, ...blockComponents];
+          }
+        } catch (error) {
+          console.warn('Failed to load blocks or no access:', error);
+        }
+
         if (idBeingLoaded === currentDashboardId) {
-          setComponents(mappedComponents);
-          setComponentLoading(new Set()); // Clear component loading state
+          setComponents(allItems);
+          setComponentLoading(new Set());
         }
       } catch (error) {
         console.error('Failed to load components from backend:', error);
         setComponents([]);
-      }
-
-      // Load content blocks when authenticated (owner or shared). Public/share routes may need a public blocks route if enabled.
-      try {
-        if (!isPublic && currentDashboardId) {
-          const blocks = await queryClient.fetchQuery({
-            queryKey: ['dashboardBlocks', currentDashboardId],
-            queryFn: () => apiClient.getDashboardBlocks(currentDashboardId),
-            staleTime: 60_000,
-            gcTime: 300_000,
-          });
-          if (idBeingLoaded === currentDashboardId) {
-            const mappedSections = blocks
-              .sort((a, b) => a.order_index - b.order_index)
-              .map(b => ({ id: b.id, backendId: b.id, title: b.content, type: b.type } as { id: string; backendId: string; title: string; type: 'header' | 'subheader' | 'text' | 'description' }));
-            setSections(mappedSections);
-          }
-        } else {
-          setSections([]);
-        }
-      } catch (error) {
-        // If 403, user is likely view-only (shared). Keep read-only mode.
-        console.warn('Failed to load blocks or no access:', error);
-        setSections([]);
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -302,17 +313,20 @@ export default function Dashboard() {
   // Generate layouts for react-grid-layout
   const generateLayouts = useCallback(() => {
     const layouts: { [key: string]: Layout[] } = {};
-    const layout = components.map(component => ({
-      i: component.id,
-      x: component.layout?.x || 0,
-      y: component.layout?.y || 0,
-      w: component.layout?.w || 4,
-      h: component.layout?.h || 3,
-      minW: component.type === 'kpi' ? 2 : 3,
-      minH: component.type === 'kpi' ? 2 : 3,
-      maxH: component.type === 'kpi' ? 4 : 8
-    }));
-    
+    const layout = components.map(component => {
+      const isTextBlock = ['header', 'subheader', 'text', 'description'].includes(component.type);
+      return {
+        i: component.id,
+        x: component.layout?.x || 0,
+        y: component.layout?.y || 0,
+        w: component.layout?.w || (isTextBlock ? 12 : 4),
+        h: component.layout?.h || (isTextBlock ? 1 : 3),
+        minW: isTextBlock ? 3 : (component.type === 'kpi' ? 2 : 3),
+        minH: isTextBlock ? 1 : (component.type === 'kpi' ? 2 : 3),
+        maxH: isTextBlock ? 3 : (component.type === 'kpi' ? 4 : 8)
+      };
+    });
+
     layouts.lg = layout;
     layouts.md = layout;
     layouts.sm = layout;
@@ -348,17 +362,33 @@ export default function Dashboard() {
       const updatePromises = currentLayout.map(async (layoutItem) => {
         const component = components.find(c => c.id === layoutItem.i);
         if (component) {
+          const isTextBlock = ['header', 'subheader', 'text', 'description'].includes(component.type);
+
           if (component.backendId) {
-            // Update existing backend component
-            console.log(`Updating existing component ${component.backendId}:`, layoutItem);
-            await apiClient.updateComponent(component.backendId, {
-              position_x: layoutItem.x,
-              position_y: layoutItem.y,
-              width: layoutItem.w,
-              height: layoutItem.h
-            });
-            if (currentDashboardId) {
-              queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+            if (isTextBlock) {
+              // Update text block
+              console.log(`Updating text block ${component.backendId}:`, layoutItem);
+              await apiClient.updateDashboardBlock(currentDashboardId, component.backendId, {
+                position_x: layoutItem.x,
+                position_y: layoutItem.y,
+                width: layoutItem.w,
+                height: layoutItem.h
+              });
+              if (currentDashboardId) {
+                queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
+              }
+            } else {
+              // Update existing backend component
+              console.log(`Updating existing component ${component.backendId}:`, layoutItem);
+              await apiClient.updateComponent(component.backendId, {
+                position_x: layoutItem.x,
+                position_y: layoutItem.y,
+                width: layoutItem.w,
+                height: layoutItem.h
+              });
+              if (currentDashboardId) {
+                queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+              }
             }
           } else {
             // Create component in backend for the first time
@@ -481,59 +511,110 @@ export default function Dashboard() {
     navigate(`/dashboard/${dashboardId}`, { replace: true });
   };
 
-  const handleAddSection = async (title: string, type: 'header' | 'subheader' | 'text' | 'description') => {
+  const handleAddTextBlock = async (type: 'header' | 'subheader' | 'text' | 'description' = 'text') => {
     if (isReadOnly) {
       toast({ title: 'Read-only', description: 'You do not have permission to edit this dashboard.' });
       return;
     }
     try {
       if (!currentDashboardId) return;
-      const nextOrder = sections.length;
-      const created = await apiClient.createDashboardBlock(currentDashboardId, { type, content: title || '', order_index: nextOrder });
-      setSections(prev => [...prev, { id: created.id, backendId: created.id, title, type }]);
+
+      // Find the highest Y position
+      const maxY = Math.max(0, ...components.map(c => (c.layout?.y || 0) + (c.layout?.h || 1)));
+
+      const created = await apiClient.createDashboardBlock(currentDashboardId, {
+        type,
+        content: '',
+        order_index: components.length,
+        position_x: 0,
+        position_y: maxY,
+        width: 12,
+        height: 1
+      });
+
+      const newBlock: ComponentItem = {
+        id: `block-${created.id}`,
+        backendId: created.id,
+        type: type,
+        blockType: type,
+        title: '',
+        content: '',
+        layout: {
+          x: 0,
+          y: maxY,
+          w: 12,
+          h: 1
+        }
+      };
+
+      setComponents(prev => [...prev, newBlock]);
+      queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
+
+      return created.id;
     } catch (e: any) {
-      console.error('Failed to add section:', e);
+      console.error('Failed to add text block:', e);
       if (e.status === 403) {
         setIsReadOnly(true);
         toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
       } else {
-        toast({ title: 'Error', description: e?.message || 'Failed to add section', variant: 'destructive' });
+        toast({ title: 'Error', description: e?.message || 'Failed to add text block', variant: 'destructive' });
       }
     }
   };
 
-  const handleUpdateSection = async (id: string, title: string) => {
+  const handleUpdateTextBlock = async (id: string, content: string) => {
     if (isReadOnly) return;
     try {
-      const section = sections.find(s => s.id === id);
-      if (!section || !currentDashboardId) return;
-      await apiClient.updateDashboardBlock(currentDashboardId, section.backendId || id, { content: title });
-      setSections(prev => prev.map(s => s.id === id ? { ...s, title } : s));
+      const component = components.find(c => c.id === id);
+      if (!component || !component.backendId || !currentDashboardId) return;
+
+      await apiClient.updateDashboardBlock(currentDashboardId, component.backendId, { content });
+      setComponents(prev => prev.map(c => c.id === id ? { ...c, title: content, content } : c));
       queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
     } catch (e: any) {
       if (e.status === 403) {
         setIsReadOnly(true);
         toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
       } else {
-        toast({ title: 'Error', description: 'Failed to update section', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to update text block', variant: 'destructive' });
       }
     }
   };
 
-  const handleDeleteSection = async (id: string) => {
+  const handleUpdateTextBlockType = async (id: string, type: 'header' | 'subheader' | 'text' | 'description') => {
     if (isReadOnly) return;
     try {
-      const section = sections.find(s => s.id === id);
-      if (!section || !currentDashboardId) return;
-      await apiClient.deleteDashboardBlock(currentDashboardId, section.backendId || id);
-      setSections(prev => prev.filter(s => s.id !== id));
+      const component = components.find(c => c.id === id);
+      if (!component || !component.backendId || !currentDashboardId) return;
+
+      await apiClient.updateDashboardBlock(currentDashboardId, component.backendId, { type });
+      setComponents(prev => prev.map(c => c.id === id ? { ...c, type, blockType: type } : c));
       queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
     } catch (e: any) {
       if (e.status === 403) {
         setIsReadOnly(true);
         toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
       } else {
-        toast({ title: 'Error', description: 'Failed to delete section', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to update text block type', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleDeleteTextBlock = async (id: string) => {
+    if (isReadOnly) return;
+    try {
+      const component = components.find(c => c.id === id);
+      if (!component || !component.backendId || !currentDashboardId) return;
+
+      await apiClient.deleteDashboardBlock(currentDashboardId, component.backendId);
+      setComponents(prev => prev.filter(c => c.id !== id));
+      queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
+    } catch (e: any) {
+      if (e.status === 403) {
+        setIsReadOnly(true);
+        toast({ title: 'Read-only', description: 'You have view-only access to this dashboard.' });
+      } else {
+        toast({ title: 'Error', description: 'Failed to delete text block', variant: 'destructive' });
       }
     }
   };
@@ -678,9 +759,60 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      <style>{`
+        .drag-handle-text {
+          pointer-events: none !important;
+        }
+        .drag-handle-text .drag-handle {
+          pointer-events: auto !important;
+          cursor: grab !important;
+        }
+        .drag-handle-text .drag-handle:active {
+          cursor: grabbing !important;
+        }
+        .drag-handle-text > div > div:not(.drag-handle) {
+          pointer-events: auto !important;
+          cursor: text !important;
+        }
+        .react-grid-item {
+          cursor: grab;
+        }
+        .react-grid-item:active {
+          cursor: grabbing;
+        }
+        .react-grid-item .drag-handle-text {
+          cursor: default;
+        }
+        .react-grid-item button,
+        .react-grid-item a,
+        .react-grid-item [role="button"],
+        .react-grid-item [role="menuitem"] {
+          cursor: pointer !important;
+        }
+        .react-grid-item .drag-handle-text button {
+          cursor: pointer !important;
+        }
+        /* Habilitar resize handles em blocos de texto */
+        .react-grid-item.react-resizable .react-resizable-handle {
+          pointer-events: auto !important;
+          z-index: 10;
+        }
+        /* Menu dropdown deve ser clicável */
+        [role="menu"],
+        [role="menuitem"],
+        [data-radix-menu-content],
+        [data-radix-popper-content-wrapper] {
+          pointer-events: auto !important;
+          cursor: default !important;
+        }
+        [role="menuitem"]:hover,
+        [data-radix-collection-item]:hover {
+          cursor: pointer !important;
+        }
+      `}</style>
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div className="group flex-1 max-w-3xl space-y-4">
+        <div className="flex-1">
           {/* Editable Title */}
           <NotionEditableText
             value={currentDashboard?.name || ''}
@@ -689,7 +821,7 @@ export default function Dashboard() {
             className="text-3xl font-bold text-foreground leading-tight"
             maxLength={100}
           />
-          
+
           {/* Default Description (disappears when empty) */}
           <NotionEditableText
             value={currentDashboard?.description || ''}
@@ -700,25 +832,8 @@ export default function Dashboard() {
             maxLength={500}
             showPlaceholderText={false}
           />
-
-          {/* Editable Sections */}
-          {sections.length > 0 && (
-            <div className="space-y-2">
-              {sections.map(section => (
-                <EditableSection
-                  key={section.id}
-                  section={section}
-                  onUpdate={handleUpdateSection}
-                  onDelete={handleDeleteSection}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Add Section Button (visible on hover) */}
-          {!isReadOnly && <AddSectionButton onAddSection={handleAddSection} />}
         </div>
-        
+
         <div className="flex gap-2">
           <Button onClick={handleAddChart} className="gap-2">
             <BarChart3 className="w-4 h-4" />
@@ -732,6 +847,12 @@ export default function Dashboard() {
             <Target className="w-4 h-4" />
             Add KPI
           </Button>
+          {!isReadOnly && (
+            <Button onClick={() => handleAddTextBlock('text')} variant="outline" className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Text
+            </Button>
+          )}
         </div>
       </div>
 
@@ -755,45 +876,64 @@ export default function Dashboard() {
           margin={[16, 16]}
           containerPadding={[0, 0]}
         >
-          {components.map((component) => (
-            <div key={component.id}>
-              <Card className="shadow-soft hover:shadow-medium transition-shadow h-full">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium cursor-move">{component.title}</CardTitle>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditComponent(component)}>
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteComponent(component.id)}
-                        className="text-destructive"
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardHeader>
-                <CardContent className="h-[calc(100%-60px)] overflow-hidden">
-                  {component.type === 'chart' ? (
-                    <DashboardChart data={component.data} loading={componentLoading.has(component.id)} />
-                  ) : component.type === 'table' ? (
-                    <DashboardTable data={component.data} loading={componentLoading.has(component.id)} />
-                  ) : (
-                    <DashboardKPI data={component.data} loading={componentLoading.has(component.id)} />
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          ))}
+          {components.map((component) => {
+            const isTextBlock = ['header', 'subheader', 'text', 'description'].includes(component.type);
+
+            if (isTextBlock) {
+              return (
+                <div key={component.id} className="p-2 drag-handle-text">
+                  <NotionBlock
+                    value={component.content || component.title || ''}
+                    type={component.blockType || component.type as any}
+                    onChange={(value) => handleUpdateTextBlock(component.id, value)}
+                    onTypeChange={(type) => handleUpdateTextBlockType(component.id, type)}
+                    onDelete={() => handleDeleteTextBlock(component.id)}
+                    showTypeMenu={!isReadOnly}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <div key={component.id}>
+                <Card className="shadow-soft hover:shadow-medium transition-shadow h-full">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium cursor-move">{component.title}</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditComponent(component)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteComponent(component.id)}
+                          className="text-destructive"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-60px)] overflow-hidden">
+                    {component.type === 'chart' ? (
+                      <DashboardChart data={component.data} loading={componentLoading.has(component.id)} />
+                    ) : component.type === 'table' ? (
+                      <DashboardTable data={component.data} loading={componentLoading.has(component.id)} />
+                    ) : (
+                      <DashboardKPI data={component.data} loading={componentLoading.has(component.id)} />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })}
         </ResponsiveGridLayout>
       </div>
 
