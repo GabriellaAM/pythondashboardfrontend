@@ -53,7 +53,7 @@ export default function Register() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <img src={datavizLogo} alt="DataViz Logo" className="h-8 w-8" />
+            <img src={datavizLogo} alt="DataViz Logo" className="h-12 w-12" />
             <span className="ml-2 text-2xl font-bold text-gray-900">VizPlatform</span>
           </div>
           <CardTitle className="text-2xl text-center">Create your account</CardTitle>
