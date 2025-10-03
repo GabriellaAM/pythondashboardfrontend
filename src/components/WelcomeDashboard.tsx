@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiClient } from "@/lib/api";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface WelcomeDashboardProps {
   onDashboardCreated: (dashboardId: string) => void;
@@ -13,6 +14,7 @@ interface WelcomeDashboardProps {
 export function WelcomeDashboard({ onDashboardCreated }: WelcomeDashboardProps) {
   const [isCreating, setIsCreating] = useState(false);
   const { setCurrentDashboard, refreshDashboards } = useDashboard();
+  const queryClient = useQueryClient();
 
   const createWelcomeDashboard = async () => {
     setIsCreating(true);
@@ -25,14 +27,13 @@ export function WelcomeDashboard({ onDashboardCreated }: WelcomeDashboardProps) 
 
       // Set as current dashboard
       setCurrentDashboard(dashboard);
-      
+
+      // Invalidate dashboard queries to force refetch
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      queryClient.invalidateQueries({ queryKey: ['sharedDashboards'] });
+
       // Refresh dashboards in sidebar
       refreshDashboards();
-      
-      // Small delay to ensure the API call completed
-      setTimeout(() => {
-        refreshDashboards();
-      }, 500);
       
       // Notify parent component
       onDashboardCreated(dashboard.id);

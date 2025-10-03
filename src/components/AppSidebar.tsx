@@ -132,8 +132,19 @@ export function AppSidebar() {
   useEffect(() => {
     loadDashboards();
     const onFocus = () => loadDashboards();
+    const onDashboardsChanged = () => loadDashboards();
+
+    // Set global reload function for DashboardContext
+    (window as any).reloadDashboards = loadDashboards;
+
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener('dashboards-changed', onDashboardsChanged);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('dashboards-changed', onDashboardsChanged);
+      delete (window as any).reloadDashboards;
+    };
   }, []);
 
   const loadDashboards = async () => {
@@ -219,7 +230,12 @@ export function AppSidebar() {
         is_public: false
       });
 
-      setDashboards(prev => [...prev, newDashboard]);
+      // Invalidate queries to force refetch
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      queryClient.invalidateQueries({ queryKey: ['sharedDashboards'] });
+
+      // Reload dashboards immediately
+      await loadDashboards();
 
       toast({
         title: "Dashboard Created",
@@ -265,8 +281,14 @@ export function AppSidebar() {
 
       await apiClient.deleteDashboard(dashboardId);
 
+      // Invalidate queries to force refetch
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      queryClient.invalidateQueries({ queryKey: ['sharedDashboards'] });
+
+      // Reload dashboards immediately
+      await loadDashboards();
+
       const remainingDashboards = dashboards.filter(d => d.id !== dashboardId);
-      setDashboards(remainingDashboards);
 
       const currentPath = location.pathname;
       if (currentPath === `/dashboard/${dashboardId}` || currentPath === `/`) {
@@ -301,6 +323,11 @@ export function AppSidebar() {
     try {
       const finalName = newName.trim() || 'Untitled Dashboard';
       await apiClient.updateDashboard(dashboardId, { name: finalName });
+
+      // Invalidate queries to ensure cache is updated
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+
       setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, name: finalName } : d));
       updateDashboardName(dashboardId, finalName);
     } catch (error: any) {
