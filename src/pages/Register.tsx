@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, BarChart3 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import datavizLogo from "@/assets/datavizlogo.png";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -52,7 +53,7 @@ export default function Register() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <BarChart3 className="h-8 w-8 text-blue-600" />
+            <img src={datavizLogo} alt="DataViz Logo" className="h-8 w-8" />
             <span className="ml-2 text-2xl font-bold text-gray-900">VizPlatform</span>
           </div>
           <CardTitle className="text-2xl text-center">Create your account</CardTitle>
