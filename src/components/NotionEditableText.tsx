@@ -189,10 +189,8 @@ export function NotionEditableText({
     <div
       onClick={handleClick}
       className={cn(
-        "cursor-text transition-colors",
-        "hover:bg-muted/50 rounded px-1 py-0.5 -mx-1 -my-0.5",
+        disabled ? "cursor-default" : "cursor-text transition-colors hover:bg-muted/50 rounded px-1 py-0.5 -mx-1 -my-0.5",
         isEmpty && "text-muted-foreground/60",
-        disabled && "cursor-not-allowed opacity-60",
         className
       )}
     >

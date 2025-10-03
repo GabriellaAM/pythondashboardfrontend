@@ -56,7 +56,7 @@ export default function Dashboard() {
   const [currentDashboardId, setCurrentDashboardId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const { currentDashboard, setCurrentDashboard, refreshDashboards } = useDashboard();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
@@ -70,7 +70,11 @@ export default function Dashboard() {
       console.log('🚀 initializeApp started');
       const isShare = location.pathname.startsWith('/share/');
       const isPublic = location.pathname.startsWith('/public/');
-      setIsReadOnly(isShare || isPublic);
+      // Only set read-only for share/public routes initially
+      // For normal routes, permissions will be checked when loading dashboard
+      if (isShare || isPublic) {
+        setIsReadOnly(true);
+      }
 
       console.log('📍 Auth status:', { isAuthenticated, isShare, isPublic });
 
@@ -301,6 +305,57 @@ export default function Dashboard() {
           });
           if (idBeingLoaded === currentDashboardId) {
             setCurrentDashboard(dashboard);
+
+            // Check if user has edit permissions - if not, set read-only
+            console.log('🔐 Dashboard data received:', dashboard);
+            console.log('🔐 Current user:', user);
+
+            const dashboardData = dashboard as any;
+            const dashboardOwnerId = dashboardData.owner_id;
+
+            // If user is owner (comparing IDs), allow editing
+            const isOwner = user?.id === dashboardOwnerId;
+
+            // If not owner, check if it's a shared dashboard with edit permission
+            let hasEditPermission = false;
+            if (!isOwner) {
+              try {
+                // Fetch shared dashboards to get permissions
+                const sharedDashboards = await queryClient.fetchQuery({
+                  queryKey: ['sharedDashboards'],
+                  queryFn: () => apiClient.getSharedDashboards(),
+                  staleTime: 60_000,
+                  gcTime: 300_000,
+                });
+
+                // Find this dashboard in shared list
+                const sharedDashboard = sharedDashboards.find((d: any) => d.id === currentDashboardId);
+                if (sharedDashboard) {
+                  const permissions = (sharedDashboard as any).permissions || [];
+                  hasEditPermission = permissions.includes('edit');
+                  console.log('🔐 Found in shared dashboards:', {
+                    dashboardId: currentDashboardId,
+                    permissions,
+                    hasEditPermission
+                  });
+                }
+              } catch (error) {
+                console.warn('Could not fetch shared dashboards for permission check:', error);
+              }
+            }
+
+            const canEdit = isOwner || hasEditPermission;
+
+            console.log('🔐 Dashboard permissions check:', {
+              dashboardOwnerId,
+              userId: user?.id,
+              isOwner,
+              hasEditPermission,
+              canEdit,
+              willBeReadOnly: !canEdit
+            });
+
+            setIsReadOnly(!canEdit);
           } else {
             return;
           }
@@ -914,6 +969,7 @@ export default function Dashboard() {
             placeholder="Untitled Dashboard"
             className="text-3xl font-bold text-foreground leading-tight"
             maxLength={100}
+            disabled={isReadOnly}
           />
 
           {/* Default Description (disappears when empty) */}
@@ -925,29 +981,36 @@ export default function Dashboard() {
             multiline={true}
             maxLength={500}
             showPlaceholderText={false}
+            disabled={isReadOnly}
           />
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={handleAddChart} className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Add Chart
-          </Button>
-          <Button onClick={handleAddTable} variant="outline" className="gap-2">
-            <Table className="w-4 h-4" />
-            Add Table
-          </Button>
-          <Button onClick={handleAddKPI} variant="outline" className="gap-2">
-            <Target className="w-4 h-4" />
-            Add KPI
-          </Button>
-          {!isReadOnly && (
+        {!isReadOnly && (
+          <div className="flex gap-2">
+            <Button onClick={handleAddChart} className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Add Chart
+            </Button>
+            <Button onClick={handleAddTable} variant="outline" className="gap-2">
+              <Table className="w-4 h-4" />
+              Add Table
+            </Button>
+            <Button onClick={handleAddKPI} variant="outline" className="gap-2">
+              <Target className="w-4 h-4" />
+              Add KPI
+            </Button>
             <Button onClick={() => handleAddTextBlock('text')} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" />
               Add Text
             </Button>
-          )}
-        </div>
+          </div>
+        )}
+        {isReadOnly && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            View Only
+          </div>
+        )}
       </div>
 
       {/* Components Grid */}
@@ -963,8 +1026,8 @@ export default function Dashboard() {
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={60}
-          isDraggable={true}
-          isResizable={true}
+          isDraggable={!isReadOnly}
+          isResizable={!isReadOnly}
           compactType="vertical"
           preventCollision={false}
           margin={[16, 16]}
@@ -983,6 +1046,7 @@ export default function Dashboard() {
                     onTypeChange={(type) => handleUpdateTextBlockType(component.id, type)}
                     onDelete={() => handleDeleteTextBlock(component.id)}
                     showTypeMenu={!isReadOnly}
+                    disabled={isReadOnly}
                   />
                 </div>
               );
@@ -993,27 +1057,29 @@ export default function Dashboard() {
                 <Card className="shadow-soft hover:shadow-medium transition-shadow h-full">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium cursor-move">{component.title}</CardTitle>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditComponent(component)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteComponent(component.id)}
-                          className="text-destructive"
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {!isReadOnly && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditComponent(component)}>
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteComponent(component.id)}
+                            className="text-destructive"
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </CardHeader>
                   <CardContent className="h-[calc(100%-60px)] overflow-hidden">
                     {component.type === 'chart' ? (

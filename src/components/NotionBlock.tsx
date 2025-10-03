@@ -312,10 +312,8 @@ export function NotionBlock({
           <div
             onClick={handleClick}
             className={cn(
-              "cursor-text transition-colors rounded px-2 py-1 -mx-2 -my-1",
-              "hover:bg-muted/30",
+              disabled ? "cursor-default" : "cursor-text transition-colors rounded px-2 py-1 -mx-2 -my-1 hover:bg-muted/30",
               isEmpty && "text-muted-foreground/60",
-              disabled && "cursor-not-allowed opacity-60",
               getDisplayClassName()
             )}
           >
