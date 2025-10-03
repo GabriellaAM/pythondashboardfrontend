@@ -89,9 +89,9 @@ export default function Dashboard() {
         // Buscar lista de dashboards acessíveis primeiro
         try {
           const ownedDashboards = await apiClient.getDashboards();
-          const accessibleDashboards = await apiClient.getAccessibleDashboards();
+          const sharedDashboards = await apiClient.getSharedDashboards();
 
-          const allDashboards = [...ownedDashboards, ...accessibleDashboards];
+          const allDashboards = [...ownedDashboards, ...sharedDashboards];
           const dashboardExists = allDashboards.some(d => d.id === dashId);
 
           console.log('📊 Total dashboards:', allDashboards.length);
@@ -160,7 +160,9 @@ export default function Dashboard() {
 
         // Fallback: usar o primeiro dashboard ACESSÍVEL (own/public/shared)
         try {
-          const dashboards = await apiClient.getAccessibleDashboards();
+          const accessibleDashboards = await apiClient.getAccessibleDashboards();
+          const sharedDashboards = await apiClient.getSharedDashboards();
+          const dashboards = [...accessibleDashboards, ...sharedDashboards];
           console.log('📊 Accessible dashboards:', dashboards?.length || 0);
 
           if (dashboards && dashboards.length > 0) {
