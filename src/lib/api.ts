@@ -1,5 +1,25 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// Portfolio interfaces
+interface PortfolioData {
+  data: any[];
+  columns: string[];
+  index: string[];
+}
+
+interface VaRVoOData {
+  var: Record<string, number>;
+  voo: Record<string, number>;
+  nivel_confianca: number;
+  janela_amostral: number;
+  periodo: number;
+}
+
+interface PositionData {
+  data: any[];
+  columns: string[];
+}
+
 interface Dashboard {
   id: string;
   name: string;
@@ -425,6 +445,48 @@ class ApiClient {
     return this.request<any>(`/api/automation/tasks/${id}/run`, {
       method: 'POST',
     });
+  }
+
+  // Portfolio methods
+  async getPortfolioCarteiras(inicio: string, fim: string, carteiras: string[] = ["EXC", "HB", "LC", "AC"], brl: boolean = false) {
+    const carteirasParam = carteiras.join(',');
+    return this.request<PortfolioData>(`/api/portfolio/visualizations/carteiras/${inicio}/${fim}?carteiras=${carteirasParam}&brl=${brl}`);
+  }
+
+  async getPortfolioRebalanceamento(inicio: string, fim: string, carteira: string = "EXC") {
+    return this.request<any>(`/api/portfolio/visualizations/rebalanceamento/${inicio}/${fim}?carteira=${carteira}`);
+  }
+
+  async getPortfolioAtivos(inicio: string, fim: string, carteira: string = "EXC", brl: boolean = false) {
+    return this.request<PortfolioData>(`/api/portfolio/visualizations/ativos/${inicio}/${fim}?carteira=${carteira}&brl=${brl}`);
+  }
+
+  async getPortfolioDecomposicao(inicio: string, fim: string, carteira: string = "EXC", brl: boolean = false) {
+    return this.request<PortfolioData>(`/api/portfolio/visualizations/decomposicao/${inicio}/${fim}?carteira=${carteira}&brl=${brl}`);
+  }
+
+  async getPortfolioHeatmap(inicio: string, fim: string, carteira: string = "EXC") {
+    return this.request<any>(`/api/portfolio/visualizations/heatmap/${inicio}/${fim}?carteira=${carteira}`);
+  }
+
+  async getPortfolioVaRVoO(inicio: string, fim: string, carteira: string = "EXC", nivel_confianca: number = 95, janela_amostral: number = 365, periodo: number = 7) {
+    return this.request<VaRVoOData>(`/api/portfolio/visualizations/var-voo/${inicio}/${fim}?carteira=${carteira}&nivel_confianca=${nivel_confianca}&janela_amostral=${janela_amostral}&periodo=${periodo}`);
+  }
+
+  async getPortfolioPosicoesAbertas(carteira: string = "EXC") {
+    return this.request<PositionData>(`/api/portfolio/visualizations/posicoes-abertas?carteira=${carteira}`);
+  }
+
+  async getPortfolioPosicoesFechadas(carteira: string = "EXC") {
+    return this.request<PositionData>(`/api/portfolio/visualizations/posicoes-fechadas?carteira=${carteira}`);
+  }
+
+  async getPortfolioDiasPositivosNegativos(inicio: string, fim: string, carteira: string = "EXC", segmentar: boolean = false) {
+    return this.request<any>(`/api/portfolio/visualizations/dias-positivos-negativos/${inicio}/${fim}?carteira=${carteira}&segmentar=${segmentar}`);
+  }
+
+  async getPortfolioBetaRolling(inicio: string, fim: string, carteira: string = "EXC", janela: number = 30) {
+    return this.request<PortfolioData>(`/api/portfolio/visualizations/beta-rolling/${inicio}/${fim}?carteira=${carteira}&janela=${janela}`);
   }
 }
 

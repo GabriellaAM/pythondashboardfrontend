@@ -13,6 +13,7 @@ import {
   PinOff,
   Users,
   Share2,
+  BarChart3,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import datavizLogo from "@/assets/datavizlogo.png";
@@ -43,6 +44,7 @@ import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { cn } from "@/lib/utils";
 
 const mainNavItems = [
+  { title: "Portfolio", url: "/portfolio", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

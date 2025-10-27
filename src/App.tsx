@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import Dashboard from "@/pages/Dashboard";
 import DashboardPage from "@/pages/DashboardPage";
+import Portfolio from "@/pages/Portfolio";
 import Settings from "@/pages/Settings";
 import Account from "@/pages/Account";
 import Login from "@/pages/Login";
@@ -134,6 +135,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Account />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/portfolio" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Portfolio />
                 </Layout>
               </ProtectedRoute>
             } />
