@@ -1,0 +1,12 @@
+export { PlotlyChart } from './PlotlyChart';
+export { CarteirasChart } from './CarteirasChart';
+export { RebalanceamentoChart } from './RebalanceamentoChart';
+export { AtivosChart } from './AtivosChart';
+export { CarteiraVsAtivosChart } from './CarteiraVsAtivosChart';
+export { DecomposicaoChart } from './DecomposicaoChart';
+export { DiasPositivosNegativosChart } from './DiasPositivosNegativosChart';
+export { AlocacoesChart } from './AlocacoesChart';
+export { VarVooChart } from './VarVooChart';
+export { CorrelationMatrixChart } from './CorrelationMatrixChart';
+export { PosicoesChart } from './PosicoesChart';
+export { BetaRollingChart } from './BetaRollingChart';

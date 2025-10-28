@@ -24,12 +24,56 @@ import {
   PieChart,
   Pie
 } from 'recharts';
+
+// Importar novos componentes Plotly
+import {
+  CarteirasChart,
+  RebalanceamentoChart,
+  AtivosChart,
+  CarteiraVsAtivosChart,
+  DecomposicaoChart,
+  DiasPositivosNegativosChart,
+  AlocacoesChart,
+  VarVooChart,
+  CorrelationMatrixChart,
+  PosicoesChart,
+  BetaRollingChart
+} from './charts';
 import { apiClient } from '../lib/api';
 
 interface PortfolioData {
   data: any[];
   columns: string[];
   index: string[];
+}
+
+interface DashboardData {
+  performance: {
+    carteiras: PortfolioData;
+    decomposicao: PortfolioData;
+    carteira_vs_ativos?: PortfolioData;
+    alocacoes?: PortfolioData;
+  };
+  rebalanceamento: any;
+  ativos: PortfolioData;
+  risco: {
+    heatmap: any;
+    var_voo: VaRVoOData;
+    beta_rolling: PortfolioData;
+  };
+  posicoes: {
+    abertas: PositionData;
+    fechadas: PositionData;
+    dias_positivos_negativos: any;
+    timeline?: PositionData;
+  };
+  metadata: {
+    carteira: string;
+    inicio: string;
+    fim: string;
+    brl: boolean;
+    processado_em: number;
+  };
 }
 
 interface VaRVoOData {
@@ -53,19 +97,22 @@ const PortfolioDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const lastLoadedRangeKeyRef = useRef<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'performance' | 'rebalanceamento' | 'ativos' | 'risco' | 'posicoes'>('performance');
+  const [activeTab, setActiveTab] = useState<'performance' | 'rebalanceamento' | 'ativos' | 'risco' | 'posicoes' | 'alocacoes' | 'correlacao'>('performance');
 
   // Estados para os dados
   const [carteirasData, setCarteirasData] = useState<PortfolioData | null>(null);
   const [rebalanceamentoData, setRebalanceamentoData] = useState<any>(null);
   const [ativosData, setAtivosData] = useState<PortfolioData | null>(null);
   const [decomposicaoData, setDecomposicaoData] = useState<PortfolioData | null>(null);
+  const [carteiraVsAtivosData, setCarteiraVsAtivosData] = useState<PortfolioData | null>(null);
+  const [alocacoesData, setAlocacoesData] = useState<PortfolioData | null>(null);
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [varVooData, setVarVooData] = useState<VaRVoOData | null>(null);
   const [posicoesAbertas, setPosicoesAbertas] = useState<PositionData | null>(null);
   const [posicoesFechadas, setPosicoesFechadas] = useState<PositionData | null>(null);
   const [diasPositivosNegativos, setDiasPositivosNegativos] = useState<any>(null);
   const [betaRollingData, setBetaRollingData] = useState<PortfolioData | null>(null);
+  const [posicoesTimelineData, setPosicoesTimelineData] = useState<PositionData | null>(null);
 
   const carteiras = ['EXC', 'HB', 'LC', 'AC'];
 
@@ -109,7 +156,7 @@ const PortfolioDashboard: React.FC = () => {
       console.log('🚀 [FRONTEND] Iniciando carregamento otimizado do dashboard...');
       const startTime = Date.now();
       
-      const dashboardData = await apiClient.getPortfolioDashboardCompleto(inicio, fim, selectedCarteira, brlMode);
+      const dashboardData: DashboardData = await apiClient.getPortfolioDashboardCompleto(inicio, fim, selectedCarteira, brlMode);
       
       const loadTime = Date.now() - startTime;
       console.log(`✅ [FRONTEND] Dashboard carregado em ${loadTime}ms`);
@@ -118,6 +165,8 @@ const PortfolioDashboard: React.FC = () => {
       // Mapear dados do response otimizado
       setCarteirasData(dashboardData.performance.carteiras);
       setDecomposicaoData(dashboardData.performance.decomposicao);
+      setCarteiraVsAtivosData(dashboardData.performance.carteira_vs_ativos);
+      setAlocacoesData(dashboardData.performance.alocacoes);
       setRebalanceamentoData(dashboardData.rebalanceamento);
       setAtivosData(dashboardData.ativos);
       setHeatmapData(dashboardData.risco.heatmap);
@@ -126,6 +175,7 @@ const PortfolioDashboard: React.FC = () => {
       setPosicoesAbertas(dashboardData.posicoes.abertas);
       setPosicoesFechadas(dashboardData.posicoes.fechadas);
       setDiasPositivosNegativos(dashboardData.posicoes.dias_positivos_negativos);
+      setPosicoesTimelineData(dashboardData.posicoes.timeline);
       
       setHasLoadedData(true);
       lastLoadedRangeKeyRef.current = currentRangeKey;
@@ -248,252 +298,109 @@ const PortfolioDashboard: React.FC = () => {
 
       {hasLoadedData && !loading && (
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <TabsList>
+        <TabsList className="grid grid-cols-7">
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="rebalanceamento">Rebalanceamento</TabsTrigger>
           <TabsTrigger value="ativos">Ativos</TabsTrigger>
           <TabsTrigger value="risco">Risco</TabsTrigger>
           <TabsTrigger value="posicoes">Posições</TabsTrigger>
+          <TabsTrigger value="alocacoes">Alocações</TabsTrigger>
+          <TabsTrigger value="correlacao">Correlação</TabsTrigger>
         </TabsList>
 
         {/* Performance Tab */}
         <TabsContent value="performance" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Comparação de Carteiras */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Comparação de Carteiras</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {carteirasData && (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={withIndex(carteirasData)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="index" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Legend />
-                      {carteirasData.columns.map((column, index) => (
-                        <Line
-                          key={column}
-                          type="monotone"
-                          dataKey={column}
-                          stroke={getColorForAsset(column)}
-                          strokeWidth={2}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+            {carteirasData && (
+              <CarteirasChart 
+                data={carteirasData} 
+                brl={brlMode}
+                inicio={getDateRangeFormatted().inicio}
+                fim={getDateRangeFormatted().fim}
+              />
+            )}
 
             {/* Decomposição */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Decomposição por Ativo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {decomposicaoData && (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={withIndex(decomposicaoData)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="index" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Legend />
-                      {decomposicaoData.columns.map((column, index) => (
-                        <Line
-                          key={column}
-                          type="monotone"
-                          dataKey={column}
-                          stroke={getColorForAsset(column)}
-                          strokeWidth={2}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+            {decomposicaoData && (
+              <DecomposicaoChart 
+                data={decomposicaoData} 
+                carteira={selectedCarteira}
+                inicio={getDateRangeFormatted().inicio}
+                fim={getDateRangeFormatted().fim}
+                segmentar={true}
+                acumular={true}
+              />
+            )}
           </div>
+
+          {/* Carteira vs Ativos */}
+          {carteiraVsAtivosData && (
+            <CarteiraVsAtivosChart 
+              data={carteiraVsAtivosData} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+            />
+          )}
         </TabsContent>
 
         {/* Rebalanceamento Tab */}
         <TabsContent value="rebalanceamento" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rebalanceamento Diário vs Alertas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {rebalanceamentoData && (
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-lg font-semibold mb-2">Rebalanceamento Diário</h4>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={withIndexNested(rebalanceamentoData.diario)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="index" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Legend />
-                        {rebalanceamentoData.diario.columns.map((column, index) => (
-                          <Line
-                            key={column}
-                            type="monotone"
-                            dataKey={column}
-                            stroke="#8884d8"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-lg font-semibold mb-2">Rebalanceamento por Alertas</h4>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={withIndexNested(rebalanceamentoData.alertas)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="index" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Legend />
-                        {rebalanceamentoData.alertas.columns.map((column, index) => (
-                          <Line
-                            key={column}
-                            type="monotone"
-                            dataKey={column}
-                            stroke="#82ca9d"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {rebalanceamentoData && (
+            <RebalanceamentoChart 
+              data={rebalanceamentoData} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+            />
+          )}
         </TabsContent>
 
         {/* Ativos Tab */}
         <TabsContent value="ativos" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Individual dos Ativos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {ativosData && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={withIndex(ativosData)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="index" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    {ativosData.columns.map((column, index) => (
-                      <Line
-                        key={column}
-                        type="monotone"
-                        dataKey={column}
-                        stroke={getColorForAsset(column)}
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
+          {ativosData && (
+            <AtivosChart 
+              data={ativosData} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+            />
+          )}
         </TabsContent>
 
         {/* Risco Tab */}
         <TabsContent value="risco" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* VaR e VoO */}
-            <Card>
-              <CardHeader>
-                <CardTitle>VaR e VoO por Ativo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {varVooData && (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold mb-2">Value at Risk (VaR) - {varVooData.nivel_confianca}%</h4>
-                      <div className="space-y-2">
-                        {Object.entries(varVooData.var).map(([ativo, varValue]) => (
-                          <div key={ativo} className="flex justify-between items-center">
-                            <span className="font-medium">{ativo}</span>
-                            <Badge variant="destructive">{formatPercentage(varValue)}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-semibold mb-2">Value of Opportunity (VoO) - {varVooData.nivel_confianca}%</h4>
-                      <div className="space-y-2">
-                        {Object.entries(varVooData.voo).map(([ativo, voo]) => (
-                          <div key={ativo} className="flex justify-between items-center">
-                            <span className="font-medium">{ativo}</span>
-                            <Badge variant="default">{formatPercentage(voo)}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {varVooData && (
+              <VarVooChart 
+                data={varVooData} 
+                carteira={selectedCarteira}
+              />
+            )}
 
             {/* Heatmap de Correlação */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Matriz de Correlação</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {heatmapData && (
-                  <div className="text-sm">
-                    <p>Matriz de correlação entre ativos (últimos 30 dias)</p>
-                    {/* Aqui você pode implementar um heatmap visual mais elaborado */}
-                    <div className="mt-4 p-4 bg-gray-50 rounded">
-                      <pre>{JSON.stringify(heatmapData, null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {heatmapData && (
+              <CorrelationMatrixChart 
+                data={heatmapData} 
+                carteira={selectedCarteira}
+                janelaAmostral={30}
+                setorizar={false}
+              />
+            )}
           </div>
 
           {/* Beta Rolling */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Beta Rolling vs BTC</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {betaRollingData && (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={withIndex(betaRollingData)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="index" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => Number(value).toFixed(4)} />
-                    <Legend />
-                    {betaRollingData.columns.map((column, index) => (
-                      <Line
-                        key={column}
-                        type="monotone"
-                        dataKey={column}
-                        stroke={getColorForAsset(column)}
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
+          {betaRollingData && (
+            <BetaRollingChart 
+              data={betaRollingData} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+              janela={30}
+            />
+          )}
         </TabsContent>
 
         {/* Posições Tab */}
@@ -561,6 +468,51 @@ const PortfolioDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Dias Positivos/Negativos */}
+          {diasPositivosNegativos && (
+            <DiasPositivosNegativosChart 
+              data={diasPositivosNegativos} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+              segmentar={false}
+            />
+          )}
+
+          {/* Timeline de Posições */}
+          {posicoesTimelineData && (
+            <PosicoesChart 
+              data={posicoesTimelineData} 
+              carteira={selectedCarteira}
+            />
+          )}
+        </TabsContent>
+
+        {/* Alocações Tab */}
+        <TabsContent value="alocacoes" className="space-y-4">
+          {alocacoesData && (
+            <AlocacoesChart 
+              data={alocacoesData} 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+              segmentar={true}
+              realAloc={false}
+            />
+          )}
+        </TabsContent>
+
+        {/* Correlação Tab */}
+        <TabsContent value="correlacao" className="space-y-4">
+          {heatmapData && (
+            <CorrelationMatrixChart 
+              data={heatmapData} 
+              carteira={selectedCarteira}
+              janelaAmostral={30}
+              setorizar={true}
+            />
+          )}
         </TabsContent>
       </Tabs>
       )}
