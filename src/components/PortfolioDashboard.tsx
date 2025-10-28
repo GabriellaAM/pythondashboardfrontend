@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
+import { DateRangePicker } from './ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { format, subDays } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -20,7 +24,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { api } from '../lib/api';
+import { apiClient } from '../lib/api';
 
 interface PortfolioData {
   data: any[];
@@ -43,10 +47,13 @@ interface PositionData {
 
 const PortfolioDashboard: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState('EXC');
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [brlMode, setBrlMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+  const lastLoadedRangeKeyRef = useRef<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'performance' | 'rebalanceamento' | 'ativos' | 'risco' | 'posicoes'>('performance');
 
   // Estados para os dados
   const [carteirasData, setCarteirasData] = useState<PortfolioData | null>(null);
@@ -61,83 +68,67 @@ const PortfolioDashboard: React.FC = () => {
   const [betaRollingData, setBetaRollingData] = useState<PortfolioData | null>(null);
 
   const carteiras = ['EXC', 'HB', 'LC', 'AC'];
-  const periods = [
-    { value: '7d', label: '7 dias' },
-    { value: '30d', label: '30 dias' },
-    { value: '90d', label: '90 dias' },
-    { value: '1y', label: '1 ano' },
-    { value: 'all', label: 'Todo período' }
-  ];
 
-  const getDateRange = (period: string) => {
-    const today = new Date();
-    const start = new Date();
-    
-    switch (period) {
-      case '7d':
-        start.setDate(today.getDate() - 7);
-        break;
-      case '30d':
-        start.setDate(today.getDate() - 30);
-        break;
-      case '90d':
-        start.setDate(today.getDate() - 90);
-        break;
-      case '1y':
-        start.setFullYear(today.getFullYear() - 1);
-        break;
-      default:
-        start.setFullYear(2020); // Todo período
+  const getDateRangeFormatted = () => {
+    if (!dateRange?.from || !dateRange?.to) {
+      // Valores padrão se não houver datas selecionadas
+      const hoje = new Date();
+      const inicio = subDays(hoje, 30);
+      return {
+        inicio: format(inicio, 'yyyy-MM-dd'),
+        fim: format(hoje, 'yyyy-MM-dd')
+      };
     }
     
     return {
-      inicio: start.toISOString().split('T')[0],
-      fim: today.toISOString().split('T')[0]
+      inicio: format(dateRange.from, 'yyyy-MM-dd'),
+      fim: format(dateRange.to, 'yyyy-MM-dd')
     };
   };
 
   const fetchData = async () => {
+    // Verificar se há um período selecionado
+    if (!dateRange?.from || !dateRange?.to) {
+      setError('Por favor, selecione um período para visualizar os dados');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
-      const { inicio, fim } = getDateRange(selectedPeriod);
+      const { inicio, fim } = getDateRangeFormatted();
+      const currentRangeKey = `${inicio}|${fim}|${selectedCarteira}|${brlMode ? 'BRL' : 'USD'}`;
+      // Evita chamadas duplicadas para o mesmo intervalo/carteira/moeda
+      if (lastLoadedRangeKeyRef.current === currentRangeKey) {
+        setLoading(false);
+        return;
+      }
       
-      // Fetch all data in parallel
-      const [
-        carteirasRes,
-        rebalanceamentoRes,
-        ativosRes,
-        decomposicaoRes,
-        heatmapRes,
-        varVooRes,
-        posicoesAbertasRes,
-        posicoesFechadasRes,
-        diasPositivosNegativosRes,
-        betaRollingRes
-      ] = await Promise.all([
-        api.request<PortfolioData>(`/portfolio/visualizations/carteiras/${inicio}/${fim}?brl=${brlMode}`),
-        api.request<any>(`/portfolio/visualizations/rebalanceamento/${inicio}/${fim}?carteira=${selectedCarteira}`),
-        api.request<PortfolioData>(`/portfolio/visualizations/ativos/${inicio}/${fim}?carteira=${selectedCarteira}&brl=${brlMode}`),
-        api.request<PortfolioData>(`/portfolio/visualizations/decomposicao/${inicio}/${fim}?carteira=${selectedCarteira}&brl=${brlMode}`),
-        api.request<any>(`/portfolio/visualizations/heatmap/${inicio}/${fim}?carteira=${selectedCarteira}`),
-        api.request<VaRVoOData>(`/portfolio/visualizations/var-voo/${inicio}/${fim}?carteira=${selectedCarteira}`),
-        api.request<PositionData>(`/portfolio/visualizations/posicoes-abertas?carteira=${selectedCarteira}`),
-        api.request<PositionData>(`/portfolio/visualizations/posicoes-fechadas?carteira=${selectedCarteira}`),
-        api.request<any>(`/portfolio/visualizations/dias-positivos-negativos/${inicio}/${fim}?carteira=${selectedCarteira}`),
-        api.request<PortfolioData>(`/portfolio/visualizations/beta-rolling/${inicio}/${fim}?carteira=${selectedCarteira}`)
-      ]);
+      // 🚀 NOVO: Usar endpoint otimizado de dashboard completo
+      console.log('🚀 [FRONTEND] Iniciando carregamento otimizado do dashboard...');
+      const startTime = Date.now();
+      
+      const dashboardData = await apiClient.getPortfolioDashboardCompleto(inicio, fim, selectedCarteira, brlMode);
+      
+      const loadTime = Date.now() - startTime;
+      console.log(`✅ [FRONTEND] Dashboard carregado em ${loadTime}ms`);
+      console.log(`📊 [FRONTEND] Tempo de processamento backend: ${dashboardData.metadata.processado_em.toFixed(2)}s`);
 
-      setCarteirasData(carteirasRes);
-      setRebalanceamentoData(rebalanceamentoRes);
-      setAtivosData(ativosRes);
-      setDecomposicaoData(decomposicaoRes);
-      setHeatmapData(heatmapRes);
-      setVarVooData(varVooRes);
-      setPosicoesAbertas(posicoesAbertasRes);
-      setPosicoesFechadas(posicoesFechadasRes);
-      setDiasPositivosNegativos(diasPositivosNegativosRes);
-      setBetaRollingData(betaRollingRes);
+      // Mapear dados do response otimizado
+      setCarteirasData(dashboardData.performance.carteiras);
+      setDecomposicaoData(dashboardData.performance.decomposicao);
+      setRebalanceamentoData(dashboardData.rebalanceamento);
+      setAtivosData(dashboardData.ativos);
+      setHeatmapData(dashboardData.risco.heatmap);
+      setVarVooData(dashboardData.risco.var_voo);
+      setBetaRollingData(dashboardData.risco.beta_rolling);
+      setPosicoesAbertas(dashboardData.posicoes.abertas);
+      setPosicoesFechadas(dashboardData.posicoes.fechadas);
+      setDiasPositivosNegativos(dashboardData.posicoes.dias_positivos_negativos);
+      
+      setHasLoadedData(true);
+      lastLoadedRangeKeyRef.current = currentRangeKey;
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
@@ -146,18 +137,22 @@ const PortfolioDashboard: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedCarteira, selectedPeriod, brlMode]);
+  // Removido carregamento automático - dados só carregam ao clicar em "Carregar Dados"
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return brlMode ? 'R$ 0,00' : '$0.00';
+    }
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: brlMode ? 'BRL' : 'USD'
     }).format(value);
   };
 
-  const formatPercentage = (value: number) => {
+  const formatPercentage = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return '0.00%';
+    }
     return `${value.toFixed(2)}%`;
   };
 
@@ -166,13 +161,21 @@ const PortfolioDashboard: React.FC = () => {
     return colors[asset.length % colors.length];
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Carregando dados do portfolio...</div>
-      </div>
-    );
-  }
+  // Recharts precisa de uma propriedade no objeto de dados usada no eixo X.
+  // O backend envia o eixo X separado em `index`, então unimos aqui.
+  const withIndex = (dataset: PortfolioData | null) => {
+    if (!dataset || !Array.isArray(dataset.data)) return [] as any[];
+    const idx = Array.isArray(dataset.index) ? dataset.index : [];
+    return dataset.data.map((row, i) => ({ index: idx[i], ...row }));
+  };
+
+  const withIndexNested = (obj: any) => {
+    if (!obj || !obj.data) return [] as any[];
+    const idx = Array.isArray(obj.index) ? obj.index : [];
+    return obj.data.map((row: any, i: number) => ({ index: idx[i], ...row }));
+  };
+
+  // Comportamento: carregar tudo de uma vez após clicar em "Carregar Dados"; não refazer ao trocar de aba
 
   return (
     <div className="space-y-6">
@@ -197,26 +200,21 @@ const PortfolioDashboard: React.FC = () => {
               </SelectContent>
             </Select>
 
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map(period => (
-                  <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
 
             <Button
               variant={brlMode ? "default" : "outline"}
               onClick={() => setBrlMode(!brlMode)}
+              disabled={!hasLoadedData}
             >
               {brlMode ? "BRL" : "USD"}
             </Button>
 
             <Button onClick={fetchData} disabled={loading}>
-              Atualizar
+              {loading ? 'Carregando...' : 'Carregar Dados'}
             </Button>
           </div>
         </CardContent>
@@ -228,7 +226,28 @@ const PortfolioDashboard: React.FC = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="performance" className="space-y-4">
+      {!hasLoadedData && !loading && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64 text-center">
+            <CalendarIcon className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Selecione um período</h3>
+            <p className="text-muted-foreground">
+              Escolha um intervalo de datas e clique em "Carregar Dados" para visualizar o dashboard
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {loading && (
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-lg">Carregando dados do portfolio...</div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasLoadedData && !loading && (
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="rebalanceamento">Rebalanceamento</TabsTrigger>
@@ -248,7 +267,7 @@ const PortfolioDashboard: React.FC = () => {
               <CardContent>
                 {carteirasData && (
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={carteirasData.data}>
+                    <LineChart data={withIndex(carteirasData)}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="index" />
                       <YAxis />
@@ -277,7 +296,7 @@ const PortfolioDashboard: React.FC = () => {
               <CardContent>
                 {decomposicaoData && (
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={decomposicaoData.data}>
+                    <LineChart data={withIndex(decomposicaoData)}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="index" />
                       <YAxis />
@@ -312,7 +331,7 @@ const PortfolioDashboard: React.FC = () => {
                   <div>
                     <h4 className="text-lg font-semibold mb-2">Rebalanceamento Diário</h4>
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={rebalanceamentoData.diario.data}>
+                      <LineChart data={withIndexNested(rebalanceamentoData.diario)}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="index" />
                         <YAxis />
@@ -334,7 +353,7 @@ const PortfolioDashboard: React.FC = () => {
                   <div>
                     <h4 className="text-lg font-semibold mb-2">Rebalanceamento por Alertas</h4>
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={rebalanceamentoData.alertas.data}>
+                      <LineChart data={withIndexNested(rebalanceamentoData.alertas)}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="index" />
                         <YAxis />
@@ -367,7 +386,7 @@ const PortfolioDashboard: React.FC = () => {
             <CardContent>
               {ativosData && (
                 <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={ativosData.data}>
+                  <LineChart data={withIndex(ativosData)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="index" />
                     <YAxis />
@@ -403,10 +422,10 @@ const PortfolioDashboard: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Value at Risk (VaR) - {varVooData.nivel_confianca}%</h4>
                       <div className="space-y-2">
-                        {Object.entries(varVooData.var).map(([ativo, var]) => (
+                        {Object.entries(varVooData.var).map(([ativo, varValue]) => (
                           <div key={ativo} className="flex justify-between items-center">
                             <span className="font-medium">{ativo}</span>
-                            <Badge variant="destructive">{formatPercentage(var)}</Badge>
+                            <Badge variant="destructive">{formatPercentage(varValue)}</Badge>
                           </div>
                         ))}
                       </div>
@@ -455,7 +474,7 @@ const PortfolioDashboard: React.FC = () => {
             <CardContent>
               {betaRollingData && (
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={betaRollingData.data}>
+                  <LineChart data={withIndex(betaRollingData)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="index" />
                     <YAxis />
@@ -491,14 +510,14 @@ const PortfolioDashboard: React.FC = () => {
                     {posicoesAbertas.data.map((posicao, index) => (
                       <div key={index} className="flex justify-between items-center p-2 border rounded">
                         <div>
-                          <span className="font-medium">{posicao.ativo}</span>
+                          <span className="font-medium">{posicao.ativo || 'N/A'}</span>
                           <div className="text-sm text-gray-500">
-                            {posicao.dias_em_carteira} dias
+                            {posicao.dias_em_carteira || 0} dias
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="font-medium">
-                            {formatPercentage(posicao.retorno_acumulado)}
+                            {formatPercentage(posicao['retorno_acumulado(%)'])}
                           </div>
                           <div className="text-sm text-gray-500">
                             {formatCurrency(posicao.preco_entrada)} → {formatCurrency(posicao.preco_atual)}
@@ -522,14 +541,14 @@ const PortfolioDashboard: React.FC = () => {
                     {posicoesFechadas.data.map((posicao, index) => (
                       <div key={index} className="flex justify-between items-center p-2 border rounded">
                         <div>
-                          <span className="font-medium">{posicao.ativo}</span>
+                          <span className="font-medium">{posicao.ativo || 'N/A'}</span>
                           <div className="text-sm text-gray-500">
-                            {posicao.dias_em_carteira} dias
+                            {posicao.dias_em_carteira || 0} dias
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-medium ${posicao.retorno_acumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatPercentage(posicao.retorno_acumulado)}
+                          <div className={`font-medium ${(posicao['retorno_acumulado(%)'] || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatPercentage(posicao['retorno_acumulado(%)'])}
                           </div>
                           <div className="text-sm text-gray-500">
                             {formatCurrency(posicao.preco_entrada)} → {formatCurrency(posicao.preco_saida)}
@@ -544,6 +563,7 @@ const PortfolioDashboard: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 };

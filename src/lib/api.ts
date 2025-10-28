@@ -488,6 +488,35 @@ class ApiClient {
   async getPortfolioBetaRolling(inicio: string, fim: string, carteira: string = "EXC", janela: number = 30) {
     return this.request<PortfolioData>(`/api/portfolio/visualizations/beta-rolling/${inicio}/${fim}?carteira=${carteira}&janela=${janela}`);
   }
+
+  // 🚀 NOVO: Endpoint otimizado para dashboard completo
+  async getPortfolioDashboardCompleto(inicio: string, fim: string, carteira: string = "EXC", brl: boolean = false) {
+    return this.request<{
+      performance: {
+        carteiras: PortfolioData;
+        decomposicao: PortfolioData;
+      };
+      rebalanceamento: any;
+      ativos: PortfolioData;
+      risco: {
+        heatmap: any;
+        var_voo: VaRVoOData;
+        beta_rolling: PortfolioData;
+      };
+      posicoes: {
+        abertas: PositionData;
+        fechadas: PositionData;
+        dias_positivos_negativos: any;
+      };
+      metadata: {
+        carteira: string;
+        inicio: string;
+        fim: string;
+        brl: boolean;
+        processado_em: number;
+      };
+    }>(`/api/portfolio/visualizations/dashboard-completo/${inicio}/${fim}?carteira=${carteira}&brl=${brl}`);
+  }
 }
 
 export const apiClient = new ApiClient();
