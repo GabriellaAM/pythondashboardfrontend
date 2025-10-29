@@ -29,7 +29,7 @@ export function CarteirasChart({ data, brl = false, inicio, fim }: CarteirasChar
     const color = getColorForAsset(column);
     return {
       x: data.index,
-      y: data.data.map(row => row[column] * 100), // Converter para porcentagem
+      y: data.data.map(row => row[column] * 100), // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
       type: 'scatter',
       mode: 'lines',
       name: column,

@@ -359,14 +359,11 @@ const PortfolioDashboard: React.FC = () => {
 
         {/* Ativos Tab */}
         <TabsContent value="ativos" className="space-y-4">
-          {ativosData && (
-            <AtivosChart 
-              data={ativosData} 
-              carteira={selectedCarteira}
-              inicio={getDateRangeFormatted().inicio}
-              fim={getDateRangeFormatted().fim}
-            />
-          )}
+          <AtivosChart 
+            carteira={selectedCarteira}
+            inicio={getDateRangeFormatted().inicio}
+            fim={getDateRangeFormatted().fim}
+          />
         </TabsContent>
 
         {/* Risco Tab */}

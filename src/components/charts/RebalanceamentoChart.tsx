@@ -39,7 +39,7 @@ export function RebalanceamentoChart({ data, carteira, inicio, fim }: Rebalancea
     data.diario.columns.forEach((column, index) => {
       traces.push({
         x: data.diario.index,
-        y: data.diario.data.map(row => row[column] * 100), // Converter para porcentagem
+        y: data.diario.data.map(row => row[column] * 100), // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
         type: 'scatter',
         mode: 'lines',
         name: `${column} (Diário)`,
@@ -60,7 +60,7 @@ export function RebalanceamentoChart({ data, carteira, inicio, fim }: Rebalancea
     data.alertas.columns.forEach((column, index) => {
       traces.push({
         x: data.alertas.index,
-        y: data.alertas.data.map(row => row[column] * 100), // Converter para porcentagem
+        y: data.alertas.data.map(row => row[column] * 100), // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
         type: 'scatter',
         mode: 'lines',
         name: `${column} (Alertas)`,

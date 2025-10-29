@@ -32,7 +32,7 @@ export function CarteiraVsAtivosChart({ data, carteira, inicio, fim }: CarteiraV
   const ativosOrdenados = ativos
     .map(ativo => ({
       ativo,
-      valor: (valores[ativo] || 0) * 100 // Converter para porcentagem
+      valor: (valores[ativo] || 0) * 100 // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
     }))
     .sort((a, b) => a.valor - b.valor);
 

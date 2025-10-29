@@ -43,7 +43,7 @@ export function AlocacoesChart({
     
     return {
       x: data.index,
-      y: data.data.map(row => (row[column] || 0) * 100), // Converter para porcentagem
+      y: data.data.map(row => (row[column] || 0) * 100), // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
       type: 'bar',
       name: column,
       marker: {

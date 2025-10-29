@@ -1,18 +1,80 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
 
 interface AtivosChartProps {
-  data: {
-    data: any[];
-    columns: string[];
-    index: string[];
-  };
   carteira: string;
   inicio?: string;
   fim?: string;
 }
 
-export function AtivosChart({ data, carteira, inicio, fim }: AtivosChartProps) {
+interface ApiData {
+  data: any[];
+  columns: string[];
+  index: string[];
+}
+
+export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
+  const [data, setData] = useState<ApiData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!inicio || !fim) {
+        setError('Período não especificado');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Usar a nova API limpa
+        const response = await fetch(
+          `http://localhost:8000/api/clean/carteira-vs-ativos/${inicio}/${fim}?carteira=${carteira}`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Erro na API: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setData(result);
+        
+      } catch (err) {
+        console.error('Erro ao buscar dados:', err);
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [carteira, inicio, fim]);
+
+  if (loading) {
+    return (
+      <PlotlyChart
+        data={[]}
+        layout={{ title: 'Carregando dados...' }}
+        title="Performance Individual dos Ativos"
+        description="Carregando dados da API..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <PlotlyChart
+        data={[]}
+        layout={{ title: `Erro: ${error}` }}
+        title="Performance Individual dos Ativos"
+        description="Erro ao carregar dados"
+      />
+    );
+  }
+
   if (!data || !data.data || data.data.length === 0) {
     return (
       <PlotlyChart
@@ -32,7 +94,7 @@ export function AtivosChart({ data, carteira, inicio, fim }: AtivosChartProps) {
   const ativosOrdenados = ativos
     .map(ativo => ({
       ativo,
-      valor: (valores[ativo] || 0) * 100 // Converter para porcentagem
+      valor: (valores[ativo] || 0) * 100 // Converter para porcentagem para exibição (0.0040 -> 0.40%)
     }))
     .sort((a, b) => a.valor - b.valor);
 
