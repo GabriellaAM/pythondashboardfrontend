@@ -312,14 +312,12 @@ const PortfolioDashboard: React.FC = () => {
         <TabsContent value="performance" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Comparação de Carteiras */}
-            {carteirasData && (
-              <CarteirasChart 
-                data={carteirasData} 
-                brl={brlMode}
-                inicio={getDateRangeFormatted().inicio}
-                fim={getDateRangeFormatted().fim}
-              />
-            )}
+            <CarteirasChart 
+              carteiras={["EXC"]}
+              brl={brlMode}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+            />
 
             {/* Decomposição */}
             <DecomposicaoChart 
