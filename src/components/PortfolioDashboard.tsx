@@ -322,16 +322,13 @@ const PortfolioDashboard: React.FC = () => {
             )}
 
             {/* Decomposição */}
-            {decomposicaoData && (
-              <DecomposicaoChart 
-                data={decomposicaoData} 
-                carteira={selectedCarteira}
-                inicio={getDateRangeFormatted().inicio}
-                fim={getDateRangeFormatted().fim}
-                segmentar={true}
-                acumular={true}
-              />
-            )}
+            <DecomposicaoChart 
+              carteira={selectedCarteira}
+              inicio={getDateRangeFormatted().inicio}
+              fim={getDateRangeFormatted().fim}
+              segmentar={true}
+              acumular={true}
+            />
           </div>
 
           {/* Carteira vs Ativos */}
