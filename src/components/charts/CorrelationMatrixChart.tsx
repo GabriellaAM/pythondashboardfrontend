@@ -126,6 +126,9 @@ export function CorrelationMatrixChart({
   };
 
   const layout = {
+    // Margens maiores para não cortar rótulos de eixos nem barra de cores
+    margin: { t: 70, r: 100, b: 110, l: 110 },
+    autosize: true,
     title: {
       text: `Matriz de Correlação de ${janelaAmostral} dias - ${carteira}`,
       x: 0.5,
@@ -139,14 +142,18 @@ export function CorrelationMatrixChart({
       tickangle: -45,
       showline: true,
       linecolor: 'black',
-      linewidth: 1
+      linewidth: 1,
+      tickfont: { size: 10 },
+      automargin: true
     },
     yaxis: {
       title: '',
       tickangle: 45,
       showline: true,
       linecolor: 'black',
-      linewidth: 1
+      linewidth: 1,
+      tickfont: { size: 10 },
+      automargin: true
     },
     hovermode: 'closest'
   };

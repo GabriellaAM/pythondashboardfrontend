@@ -49,12 +49,15 @@ export function PlotlyChart({
         </CardHeader>
       )}
       <CardContent>
-        <Plot
-          data={data}
-          layout={defaultLayout}
-          config={defaultConfig}
-          style={{ width: '100%', height: '400px' }}
-        />
+        <div className="w-full h-full min-h-[400px]">
+          <Plot
+            data={data}
+            layout={defaultLayout}
+            config={defaultConfig}
+            useResizeHandler
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
       </CardContent>
     </Card>
   );
