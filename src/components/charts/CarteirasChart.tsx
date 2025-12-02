@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PlotlyChart } from './PlotlyChart';
+import { frontendCache } from '../../lib/cache';
 
 interface CarteirasChartProps {
   carteiras?: string[];
@@ -33,11 +34,23 @@ export function CarteirasChart({
       }
 
       try {
+        // Check cache first
+        const carteirasParam = carteiras.join(',');
+        const cacheKey = frontendCache.generateKey(`/api/clean/carteiras/${inicio}/${fim}`, { 
+          carteiras: carteirasParam, 
+          brl 
+        });
+        const cachedData = frontendCache.get<ApiData>(cacheKey);
+        
+        if (cachedData) {
+          setData(cachedData);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         setError(null);
         
-        // Usar a nova API limpa de carteiras
-        const carteirasParam = carteiras.join(',');
         const response = await fetch(
           `http://localhost:8000/api/clean/carteiras/${inicio}/${fim}?carteiras=${carteirasParam}&brl=${brl}`
         );
@@ -47,6 +60,7 @@ export function CarteirasChart({
         }
         
         const result = await response.json();
+        frontendCache.set(cacheKey, result);
         setData(result);
         
       } catch (err) {

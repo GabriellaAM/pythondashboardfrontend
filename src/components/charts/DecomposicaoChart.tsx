@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
+import { frontendCache } from '../../lib/cache';
 
 interface DecomposicaoChartProps {
   carteira: string;
@@ -35,10 +36,23 @@ export function DecomposicaoChart({
       }
 
       try {
+        // Check cache first
+        const cacheKey = frontendCache.generateKey(`/api/clean/decomposicao/${inicio}/${fim}`, { 
+          carteira, 
+          segmentar, 
+          acumular 
+        });
+        const cachedData = frontendCache.get<ApiData>(cacheKey);
+        
+        if (cachedData) {
+          setData(cachedData);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         setError(null);
         
-        // Usar a nova API limpa de decomposição
         const response = await fetch(
           `http://localhost:8000/api/clean/decomposicao/${inicio}/${fim}?carteira=${carteira}&segmentar=${segmentar}&acumular=${acumular}`
         );
@@ -48,6 +62,7 @@ export function DecomposicaoChart({
         }
         
         const result = await response.json();
+        frontendCache.set(cacheKey, result);
         setData(result);
         
       } catch (err) {

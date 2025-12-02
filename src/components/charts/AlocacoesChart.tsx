@@ -1,12 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
+import { frontendCache } from '../../lib/cache';
 
 interface AlocacoesChartProps {
-  data: {
-    data: any[];
-    columns: string[];
-    index: string[];
-  };
   carteira: string;
   inicio?: string;
   fim?: string;
@@ -14,14 +10,94 @@ interface AlocacoesChartProps {
   realAloc?: boolean;
 }
 
+interface ApiData {
+  data: any[];
+  columns: string[];
+  index: string[];
+}
+
 export function AlocacoesChart({ 
-  data, 
   carteira, 
   inicio, 
   fim, 
   segmentar = false, 
   realAloc = false 
 }: AlocacoesChartProps) {
+  const [data, setData] = useState<ApiData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!inicio || !fim) {
+        setError('Período não especificado');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Check cache first
+        const cacheKey = frontendCache.generateKey(`/api/portfolio/visualizations/alocacoes/${inicio}/${fim}`, { 
+          carteira, 
+          segmentar, 
+          realAloc 
+        });
+        const cachedData = frontendCache.get<ApiData>(cacheKey);
+        
+        if (cachedData) {
+          setData(cachedData);
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(
+          `http://localhost:8000/api/portfolio/visualizations/alocacoes/${inicio}/${fim}?carteira=${carteira}&segmentar=${segmentar}&realAloc=${realAloc}`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Erro na API: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        frontendCache.set(cacheKey, result);
+        setData(result);
+        
+      } catch (err) {
+        console.error('Erro ao buscar dados de alocações:', err);
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [carteira, inicio, fim, segmentar, realAloc]);
+
+  if (loading) {
+    return (
+      <PlotlyChart
+        data={[]}
+        layout={{ title: 'Carregando dados...' }}
+        title="Alocação de Ativos ao Longo do Tempo"
+        description="Carregando dados..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <PlotlyChart
+        data={[]}
+        layout={{ title: `Erro: ${error}` }}
+        title="Alocação de Ativos ao Longo do Tempo"
+        description={`Erro ao carregar dados: ${error}`}
+      />
+    );
+  }
+
   if (!data || !data.data || data.data.length === 0) {
     return (
       <PlotlyChart
@@ -43,7 +119,7 @@ export function AlocacoesChart({
     
     return {
       x: data.index,
-      y: data.data.map(row => (row[column] || 0) * 100), // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
+      y: data.data.map(row => row[column] || 0), // Valores já vêm em porcentagem da API (multiplicados por 100 no backend)
       type: 'bar',
       name: column,
       marker: {

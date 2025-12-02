@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -28,16 +29,13 @@ import {
 // Importar novos componentes Plotly
 import {
   CarteirasChart,
-  RebalanceamentoChart,
   AtivosChart,
   CarteiraVsAtivosChart,
   DecomposicaoChart,
   DiasPositivosNegativosChart,
   AlocacoesChart,
-  VarVooChart,
   CorrelationMatrixChart,
-  PosicoesChart,
-  BetaRollingChart
+  OpenPositionsTable
 } from './charts';
 import { apiClient } from '../lib/api';
 
@@ -54,12 +52,9 @@ interface DashboardData {
     carteira_vs_ativos?: PortfolioData;
     alocacoes?: PortfolioData;
   };
-  rebalanceamento: any;
   ativos: PortfolioData;
   risco: {
     heatmap: any;
-    var_voo: VaRVoOData;
-    beta_rolling: PortfolioData;
   };
   posicoes: {
     abertas: PositionData;
@@ -76,14 +71,6 @@ interface DashboardData {
   };
 }
 
-interface VaRVoOData {
-  var: Record<string, number>;
-  voo: Record<string, number>;
-  nivel_confianca: number;
-  janela_amostral: number;
-  periodo: number;
-}
-
 interface PositionData {
   data: any[];
   columns: string[];
@@ -97,21 +84,18 @@ const PortfolioDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const lastLoadedRangeKeyRef = useRef<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'performance' | 'rebalanceamento' | 'ativos' | 'risco' | 'posicoes' | 'alocacoes' | 'correlacao'>('performance');
+  const [activeTab, setActiveTab] = useState<'performance' | 'ativos' | 'posicoes' | 'alocacoes' | 'correlacao'>('performance');
 
   // Estados para os dados
   const [carteirasData, setCarteirasData] = useState<PortfolioData | null>(null);
-  const [rebalanceamentoData, setRebalanceamentoData] = useState<any>(null);
   const [ativosData, setAtivosData] = useState<PortfolioData | null>(null);
   const [decomposicaoData, setDecomposicaoData] = useState<PortfolioData | null>(null);
   const [carteiraVsAtivosData, setCarteiraVsAtivosData] = useState<PortfolioData | null>(null);
   const [alocacoesData, setAlocacoesData] = useState<PortfolioData | null>(null);
   const [heatmapData, setHeatmapData] = useState<any>(null);
-  const [varVooData, setVarVooData] = useState<VaRVoOData | null>(null);
   const [posicoesAbertas, setPosicoesAbertas] = useState<PositionData | null>(null);
   const [posicoesFechadas, setPosicoesFechadas] = useState<PositionData | null>(null);
   const [diasPositivosNegativos, setDiasPositivosNegativos] = useState<any>(null);
-  const [betaRollingData, setBetaRollingData] = useState<PortfolioData | null>(null);
   const [posicoesTimelineData, setPosicoesTimelineData] = useState<PositionData | null>(null);
 
   const carteiras = ['EXC', 'HB', 'LC', 'AC'];
@@ -167,11 +151,8 @@ const PortfolioDashboard: React.FC = () => {
       setDecomposicaoData(dashboardData.performance.decomposicao);
       setCarteiraVsAtivosData(dashboardData.performance.carteira_vs_ativos);
       setAlocacoesData(dashboardData.performance.alocacoes);
-      setRebalanceamentoData(dashboardData.rebalanceamento);
       setAtivosData(dashboardData.ativos);
       setHeatmapData(dashboardData.risco.heatmap);
-      setVarVooData(dashboardData.risco.var_voo);
-      setBetaRollingData(dashboardData.risco.beta_rolling);
       setPosicoesAbertas(dashboardData.posicoes.abertas);
       setPosicoesFechadas(dashboardData.posicoes.fechadas);
       setDiasPositivosNegativos(dashboardData.posicoes.dias_positivos_negativos);
@@ -197,6 +178,16 @@ const PortfolioDashboard: React.FC = () => {
       style: 'currency',
       currency: brlMode ? 'BRL' : 'USD'
     }).format(value);
+  };
+
+  const formatDate = (value: string | Date | undefined | null) => {
+    if (!value) return 'N/A';
+    try {
+      const date = typeof value === 'string' ? new Date(value) : value;
+      return format(date, 'dd/MM/yyyy');
+    } catch {
+      return 'N/A';
+    }
   };
 
   const formatPercentage = (value: number | undefined | null) => {
@@ -298,11 +289,9 @@ const PortfolioDashboard: React.FC = () => {
 
       {hasLoadedData && !loading && (
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <TabsList className="grid grid-cols-7">
+        <TabsList className="grid grid-cols-5">
           <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="rebalanceamento">Rebalanceamento</TabsTrigger>
           <TabsTrigger value="ativos">Ativos</TabsTrigger>
-          <TabsTrigger value="risco">Risco</TabsTrigger>
           <TabsTrigger value="posicoes">Posições</TabsTrigger>
           <TabsTrigger value="alocacoes">Alocações</TabsTrigger>
           <TabsTrigger value="correlacao">Correlação</TabsTrigger>
@@ -340,18 +329,6 @@ const PortfolioDashboard: React.FC = () => {
           )}
         </TabsContent>
 
-        {/* Rebalanceamento Tab */}
-        <TabsContent value="rebalanceamento" className="space-y-4">
-          {rebalanceamentoData && (
-            <RebalanceamentoChart 
-              data={rebalanceamentoData} 
-              carteira={selectedCarteira}
-              inicio={getDateRangeFormatted().inicio}
-              fim={getDateRangeFormatted().fim}
-            />
-          )}
-        </TabsContent>
-
         {/* Ativos Tab */}
         <TabsContent value="ativos" className="space-y-4">
           <AtivosChart 
@@ -361,150 +338,44 @@ const PortfolioDashboard: React.FC = () => {
           />
         </TabsContent>
 
-        {/* Risco Tab */}
-        <TabsContent value="risco" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* VaR e VoO */}
-            {varVooData && (
-              <VarVooChart 
-                data={varVooData} 
-                carteira={selectedCarteira}
-              />
-            )}
-
-            {/* Heatmap de Correlação */}
-            {heatmapData && (
-              <CorrelationMatrixChart 
-                data={heatmapData} 
-                carteira={selectedCarteira}
-                janelaAmostral={30}
-                setorizar={false}
-              />
-            )}
-          </div>
-
-          {/* Beta Rolling */}
-          {betaRollingData && (
-            <BetaRollingChart 
-              data={betaRollingData} 
-              carteira={selectedCarteira}
-              inicio={getDateRangeFormatted().inicio}
-              fim={getDateRangeFormatted().fim}
-              janela={30}
-            />
-          )}
-        </TabsContent>
-
         {/* Posições Tab */}
         <TabsContent value="posicoes" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Posições Abertas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Posições Abertas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {posicoesAbertas && (
-                  <div className="space-y-2">
-                    {posicoesAbertas.data.map((posicao, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <span className="font-medium">{posicao.ativo || 'N/A'}</span>
-                          <div className="text-sm text-gray-500">
-                            {posicao.dias_em_carteira || 0} dias
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">
-                            {formatPercentage(posicao['retorno_acumulado(%)'])}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {formatCurrency(posicao.preco_entrada)} → {formatCurrency(posicao.preco_atual)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Posições Fechadas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Posições Fechadas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {posicoesFechadas && (
-                  <div className="space-y-2">
-                    {posicoesFechadas.data.map((posicao, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <span className="font-medium">{posicao.ativo || 'N/A'}</span>
-                          <div className="text-sm text-gray-500">
-                            {posicao.dias_em_carteira || 0} dias
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`font-medium ${(posicao['retorno_acumulado(%)'] || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatPercentage(posicao['retorno_acumulado(%)'])}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {formatCurrency(posicao.preco_entrada)} → {formatCurrency(posicao.preco_saida)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Posições Abertas - Seguindo o padrão do CarteirasChart */}
+          <OpenPositionsTable 
+            carteira={selectedCarteira}
+            brl={brlMode}
+          />
 
           {/* Dias Positivos/Negativos */}
-          {diasPositivosNegativos && (
-            <DiasPositivosNegativosChart 
-              data={diasPositivosNegativos} 
-              carteira={selectedCarteira}
-              inicio={getDateRangeFormatted().inicio}
-              fim={getDateRangeFormatted().fim}
-              segmentar={false}
-            />
-          )}
+          <DiasPositivosNegativosChart 
+            carteira={selectedCarteira}
+            inicio={getDateRangeFormatted().inicio}
+            fim={getDateRangeFormatted().fim}
+            segmentar={false}
+          />
 
-          {/* Timeline de Posições */}
-          {posicoesTimelineData && (
-            <PosicoesChart 
-              data={posicoesTimelineData} 
-              carteira={selectedCarteira}
-            />
-          )}
         </TabsContent>
 
         {/* Alocações Tab */}
         <TabsContent value="alocacoes" className="space-y-4">
-          {alocacoesData && (
-            <AlocacoesChart 
-              data={alocacoesData} 
-              carteira={selectedCarteira}
-              inicio={getDateRangeFormatted().inicio}
-              fim={getDateRangeFormatted().fim}
-              segmentar={true}
-              realAloc={false}
-            />
-          )}
+          <AlocacoesChart 
+            carteira={selectedCarteira}
+            inicio={getDateRangeFormatted().inicio}
+            fim={getDateRangeFormatted().fim}
+            segmentar={true}
+            realAloc={false}
+          />
         </TabsContent>
 
         {/* Correlação Tab */}
         <TabsContent value="correlacao" className="space-y-4">
-          {heatmapData && (
-            <CorrelationMatrixChart 
-              data={heatmapData} 
-              carteira={selectedCarteira}
-              janelaAmostral={30}
-              setorizar={true}
-            />
-          )}
+          <CorrelationMatrixChart 
+            carteira={selectedCarteira}
+            inicio={getDateRangeFormatted().inicio}
+            fim={getDateRangeFormatted().fim}
+            janelaAmostral={30}
+            setorizar={true}
+          />
         </TabsContent>
       </Tabs>
       )}

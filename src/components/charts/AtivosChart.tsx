@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
+import { frontendCache } from '../../lib/cache';
 
 interface AtivosChartProps {
   carteira: string;
@@ -27,12 +28,21 @@ export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
       }
 
       try {
+        // Check cache first
+        const cacheKey = frontendCache.generateKey(`/api/portfolio/visualizations/ativos/${inicio}/${fim}`, { carteira });
+        const cachedData = frontendCache.get<ApiData>(cacheKey);
+        
+        if (cachedData) {
+          setData(cachedData);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         setError(null);
         
-        // Usar a nova API limpa
         const response = await fetch(
-          `http://localhost:8000/api/clean/carteira-vs-ativos/${inicio}/${fim}?carteira=${carteira}`
+          `http://localhost:8000/api/portfolio/visualizations/ativos/${inicio}/${fim}?carteira=${carteira}`
         );
         
         if (!response.ok) {
@@ -40,6 +50,7 @@ export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
         }
         
         const result = await response.json();
+        frontendCache.set(cacheKey, result);
         setData(result);
         
       } catch (err) {
@@ -91,10 +102,11 @@ export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
   const valores = data.data[data.data.length - 1]; // Última linha (performance acumulada)
   
   // Ordenar por performance
+  // Valores já vêm em porcentagem da API (multiplicados por 100 no backend)
   const ativosOrdenados = ativos
     .map(ativo => ({
       ativo,
-      valor: (valores[ativo] || 0) * 100 // Converter para porcentagem para exibição (0.0040 -> 0.40%)
+      valor: valores[ativo] || 0 // Valores já estão em porcentagem (ex: 0.40 = 0.40%)
     }))
     .sort((a, b) => a.valor - b.valor);
 

@@ -9,4 +9,5 @@ export { AlocacoesChart } from './AlocacoesChart';
 export { VarVooChart } from './VarVooChart';
 export { CorrelationMatrixChart } from './CorrelationMatrixChart';
 export { PosicoesChart } from './PosicoesChart';
+export { OpenPositionsTable } from './OpenPositionsTable';
 export { BetaRollingChart } from './BetaRollingChart';

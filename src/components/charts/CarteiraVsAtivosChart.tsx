@@ -29,10 +29,11 @@ export function CarteiraVsAtivosChart({ data, carteira, inicio, fim }: CarteiraV
   const valores = data.data[data.data.length - 1]; // Última linha (performance acumulada)
   
   // Ordenar por performance
+  // Valores já vêm em porcentagem da API (multiplicados por 100 no backend)
   const ativosOrdenados = ativos
     .map(ativo => ({
       ativo,
-      valor: (valores[ativo] || 0) * 100 // ✅ Converter para porcentagem para exibição (0.0040 -> 0.40)
+      valor: valores[ativo] || 0 // Valores já estão em porcentagem (ex: 0.40 = 0.40%)
     }))
     .sort((a, b) => a.valor - b.valor);
 
@@ -49,7 +50,8 @@ export function CarteiraVsAtivosChart({ data, carteira, inicio, fim }: CarteiraV
         width: 0.1
       }
     },
-    hovertemplate: '<b>%{x}</b><br>Rentabilidade: %{y:.2f}%<extra></extra>',
+    hoverinfo: 'y', // EXATO do notebook
+    hovertemplate: '<b>%{x}</b>: %{y:.2f}%<extra></extra>', // EXATO do notebook: sem <br>Rentabilidade:
     hoverlabel: {
       bgcolor: 'white',
       font_size: 12,
@@ -59,12 +61,16 @@ export function CarteiraVsAtivosChart({ data, carteira, inicio, fim }: CarteiraV
   };
 
   const layout = {
+    margin: { t: 60 }, // EXATO do notebook: margin=dict(t=60)
     title: {
       text: `Performance Acumulada: ${carteira} vs. Ativos`,
       x: 0.055,
       y: 0.97,
       font: { size: 18, color: 'black', family: 'Georgia' }
     },
+    xaxis_title: '', // EXATO do notebook: xaxis_title=''
+    yaxis_title: 'Rentabilidade Acumulada (%)', // EXATO do notebook
+    plot_bgcolor: 'white', // EXATO do notebook: plot_bgcolor='white'
     xaxis: {
       title: '',
       showline: true,
@@ -81,7 +87,12 @@ export function CarteiraVsAtivosChart({ data, carteira, inicio, fim }: CarteiraV
       linewidth: 2,
       zerolinecolor: 'lightgray'
     },
-    annotations: inicio && fim ? [{
+    font: { // EXATO do notebook: font=dict(family='Georgia', size=15, color='black')
+      family: 'Georgia',
+      size: 15,
+      color: 'black'
+    },
+    annotations: inicio && fim ? [{ // EXATO do notebook
       text: `Período: ${inicio} à ${fim}`,
       xref: 'paper',
       yref: 'paper',
