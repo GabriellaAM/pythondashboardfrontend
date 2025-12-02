@@ -21,7 +21,7 @@ export function CorrelationMatrixChart({
   inicio, 
   fim,
   janelaAmostral = 30, 
-  setorizar = false 
+  setorizar = true  // padrão: setorizar=true, como no exemplo principal do notebook
 }: CorrelationMatrixChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +36,11 @@ export function CorrelationMatrixChart({
       }
 
       try {
-        // Check cache first
-        const cacheKey = frontendCache.generateKey(`/api/portfolio/visualizations/heatmap/${inicio}/${fim}`, { carteira });
+        // Check cache first (inclui janelaAmostral e setorizar na chave para refletir o notebook)
+        const cacheKey = frontendCache.generateKey(
+          `/api/portfolio/visualizations/heatmap/${inicio}/${fim}`, 
+          { carteira, janelaAmostral, setorizar }
+        );
         const cachedData = frontendCache.get<ApiData>(cacheKey);
         
         if (cachedData) {
@@ -50,7 +53,7 @@ export function CorrelationMatrixChart({
         setError(null);
         
         const response = await fetch(
-          `http://localhost:8000/api/portfolio/visualizations/heatmap/${inicio}/${fim}?carteira=${carteira}`
+          `http://localhost:8000/api/portfolio/visualizations/heatmap/${inicio}/${fim}?carteira=${carteira}&janela_amostral=${janelaAmostral}&setorizar=${setorizar}`
         );
         
         if (!response.ok) {
@@ -70,7 +73,7 @@ export function CorrelationMatrixChart({
     };
 
     fetchData();
-  }, [carteira, inicio, fim]);
+  }, [carteira, inicio, fim, janelaAmostral, setorizar]);
 
   if (loading) {
     return (
