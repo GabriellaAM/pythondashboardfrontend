@@ -26,10 +26,12 @@ import { NotionBlock } from "@/components/NotionBlock";
 import { DashboardChart } from "@/components/DashboardChart";
 import { DashboardTable } from "@/components/DashboardTable";
 import { DashboardKPI } from "@/components/DashboardKPI";
+import { DashboardPortfolioChart } from "@/components/DashboardPortfolioChart";
+import { PortfolioChartModal } from "@/components/PortfolioChartModal";
 
 interface ComponentItem {
   id: string;
-  type: 'chart' | 'table' | 'kpi' | 'header' | 'subheader' | 'text' | 'description';
+  type: 'chart' | 'table' | 'kpi' | 'portfolio' | 'portfolio_chart' | 'header' | 'subheader' | 'text' | 'description';
   title: string;
   data?: any;
   layout?: {
@@ -61,6 +63,7 @@ export default function Dashboard() {
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isKPIModalOpen, setIsKPIModalOpen] = useState(false);
+  const [isPortfolioChartModalOpen, setIsPortfolioChartModalOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<ComponentItem | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
 
@@ -376,19 +379,23 @@ export default function Dashboard() {
       }
 
       try {
-        const mappedComponents: ComponentItem[] = backendComponents.map((comp: any) => ({
-          id: comp.id,
-          backendId: comp.id,
-          type: comp.type,
-          title: comp.name,
-          data: comp.config,
-          layout: {
-            x: comp.position_x || 0,
-            y: comp.position_y || 0,
-            w: comp.width || (comp.type === 'kpi' ? 3 : 6),
-            h: comp.height || (comp.type === 'kpi' ? 2 : 4)
-          }
-        }));
+        const mappedComponents: ComponentItem[] = backendComponents.map((comp: any) => {
+          // Map 'portfolio_chart' from backend to 'portfolio' in frontend
+          const frontendType = comp.type === 'portfolio_chart' ? 'portfolio' : comp.type;
+          return {
+            id: comp.id,
+            backendId: comp.id,
+            type: frontendType,
+            title: comp.name,
+            data: comp.config,
+            layout: {
+              x: comp.position_x || 0,
+              y: comp.position_y || 0,
+              w: comp.width || (comp.type === 'kpi' ? 3 : comp.type === 'portfolio_chart' ? 6 : 6),
+              h: comp.height || (comp.type === 'kpi' ? 2 : comp.type === 'portfolio_chart' ? 5 : 4)
+            }
+          };
+        });
 
         // Load content blocks and merge with components
         let allItems = [...mappedComponents];
@@ -462,17 +469,18 @@ export default function Dashboard() {
   // Generate layouts for react-grid-layout
   const generateLayouts = useCallback(() => {
     const layouts: { [key: string]: Layout[] } = {};
-    const layout = components.map(component => {
+      const layout = components.map(component => {
       const isTextBlock = ['header', 'subheader', 'text', 'description'].includes(component.type);
+      const isPortfolio = component.type === 'portfolio';
       return {
         i: component.id,
         x: component.layout?.x || 0,
         y: component.layout?.y || 0,
-        w: component.layout?.w || (isTextBlock ? 12 : 4),
-        h: component.layout?.h || (isTextBlock ? 1 : 3),
-        minW: isTextBlock ? 3 : (component.type === 'kpi' ? 2 : 3),
-        minH: isTextBlock ? 1 : (component.type === 'kpi' ? 2 : 3),
-        maxH: isTextBlock ? 3 : (component.type === 'kpi' ? 4 : 8)
+        w: component.layout?.w || (isTextBlock ? 12 : isPortfolio ? 6 : 4),
+        h: component.layout?.h || (isTextBlock ? 1 : isPortfolio ? 5 : 3),
+        minW: isTextBlock ? 3 : (component.type === 'kpi' ? 2 : isPortfolio ? 4 : 3),
+        minH: isTextBlock ? 1 : (component.type === 'kpi' ? 2 : isPortfolio ? 4 : 3),
+        maxH: isTextBlock ? 3 : (component.type === 'kpi' ? 4 : isPortfolio ? 10 : 8)
       };
     });
 
@@ -527,7 +535,7 @@ export default function Dashboard() {
                 queryClient.invalidateQueries({ queryKey: ['dashboardBlocks', currentDashboardId] });
               }
             } else {
-              // Update existing backend component
+              // Update existing backend component (chart, table, kpi, portfolio)
               console.log(`Updating existing component ${component.backendId}:`, layoutItem);
               await apiClient.updateComponent(component.backendId, {
                 position_x: layoutItem.x,
@@ -545,10 +553,15 @@ export default function Dashboard() {
             console.log('Dashboard ID:', currentDashboardId);
             console.log('Auth token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
             try {
+              // Map 'portfolio' to 'portfolio_chart' for backend
+              const backendType: 'chart' | 'table' | 'kpi' | 'portfolio_chart' = 
+                component.type === 'portfolio' || component.type === 'portfolio_chart' 
+                  ? 'portfolio_chart' 
+                  : component.type as 'chart' | 'table' | 'kpi';
               const backendComponent = await apiClient.createComponent({
                 dashboard_id: currentDashboardId,
                 name: component.title,
-                type: component.type as 'chart' | 'table' | 'kpi',
+                type: backendType,
                 config: component.data || {},
                 position_x: layoutItem.x,
                 position_y: layoutItem.y,
@@ -621,6 +634,11 @@ export default function Dashboard() {
     setIsKPIModalOpen(true);
   };
 
+  const handleAddPortfolioChart = () => {
+    setEditingComponent(null);
+    setIsPortfolioChartModalOpen(true);
+  };
+
   const handleEditComponent = (component: ComponentItem) => {
     setEditingComponent(component);
     if (component.type === 'chart') {
@@ -629,6 +647,8 @@ export default function Dashboard() {
       setIsTableModalOpen(true);
     } else if (component.type === 'kpi') {
       setIsKPIModalOpen(true);
+    } else if (component.type === 'portfolio' || component.type === 'portfolio_chart') {
+      setIsPortfolioChartModalOpen(true);
     }
   };
 
@@ -824,6 +844,15 @@ export default function Dashboard() {
 
   const handleSaveComponent = async (component: Omit<ComponentItem, 'id'>) => {
     try {
+      if (!currentDashboardId) {
+        toast({
+          title: "Error",
+          description: "No dashboard selected",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (editingComponent) {
         // Update existing component
         if (editingComponent.backendId) {
@@ -844,16 +873,30 @@ export default function Dashboard() {
         const defaultLayout = {
           x: 0,
           y: maxY,
-          w: component.type === 'kpi' ? 3 : 6,
-          h: component.type === 'kpi' ? 2 : 4
+          w: component.type === 'kpi' ? 3 : (component.type === 'portfolio' || component.type === 'portfolio_chart') ? 6 : 6,
+          h: component.type === 'kpi' ? 2 : (component.type === 'portfolio' || component.type === 'portfolio_chart') ? 5 : 4
         };
         
         try {
+          // Map 'portfolio' to 'portfolio_chart' for backend
+          const backendType: 'chart' | 'table' | 'kpi' | 'portfolio_chart' = 
+            component.type === 'portfolio' || component.type === 'portfolio_chart' 
+              ? 'portfolio_chart' 
+              : component.type as 'chart' | 'table' | 'kpi';
+          
+          console.log('Creating component with:', {
+            dashboard_id: currentDashboardId,
+            name: component.title,
+            type: backendType,
+            config: component.data,
+            position: defaultLayout
+          });
+
           const backendComponent = await apiClient.createComponent({
             dashboard_id: currentDashboardId,
             name: component.title,
-            type: component.type as 'chart' | 'table' | 'kpi',
-            config: component.data,
+            type: backendType,
+            config: component.data || {},
             position_x: defaultLayout.x,
             position_y: defaultLayout.y,
             width: defaultLayout.w,
@@ -870,21 +913,28 @@ export default function Dashboard() {
           if (currentDashboardId) {
             queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to save to backend:', error);
+          const errorMessage = error?.message || error?.detail || 'Erro desconhecido ao salvar componente';
+          toast({
+            title: "Erro ao salvar",
+            description: errorMessage,
+            variant: "destructive"
+          });
           throw error;
         }
       }
       
       toast({
-        title: "Success",
-        description: editingComponent ? "Component updated successfully" : "Component created successfully",
+        title: "Sucesso",
+        description: editingComponent ? "Componente atualizado com sucesso" : "Componente criado com sucesso",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save component:', error);
+      const errorMessage = error?.message || error?.detail || 'Falha ao salvar componente';
       toast({
-        title: "Error",
-        description: "Failed to save component",
+        title: "Erro",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -999,6 +1049,10 @@ export default function Dashboard() {
               <Target className="w-4 h-4" />
               Add KPI
             </Button>
+            <Button onClick={handleAddPortfolioChart} variant="outline" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Add Portfolio
+            </Button>
             <Button onClick={() => handleAddTextBlock('text')} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" />
               Add Text
@@ -1032,6 +1086,7 @@ export default function Dashboard() {
           preventCollision={false}
           margin={[16, 16]}
           containerPadding={[0, 0]}
+          draggableHandle=".drag-handle"
         >
           {components.map((component) => {
             const isTextBlock = ['header', 'subheader', 'text', 'description'].includes(component.type);
@@ -1056,7 +1111,7 @@ export default function Dashboard() {
               <div key={component.id}>
                 <Card className="shadow-soft hover:shadow-medium transition-shadow h-full">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium cursor-move">{component.title}</CardTitle>
+                    <CardTitle className="text-sm font-medium cursor-move drag-handle">{component.title}</CardTitle>
                     {!isReadOnly && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1081,14 +1136,42 @@ export default function Dashboard() {
                       </DropdownMenu>
                     )}
                   </CardHeader>
-                  <CardContent className="h-[calc(100%-60px)] overflow-hidden">
+                  <CardContent className="h-[calc(100%-60px)] overflow-hidden p-4" style={{ height: 'calc(100% - 60px)' }}>
                     {component.type === 'chart' ? (
                       <DashboardChart data={component.data} loading={componentLoading.has(component.id)} />
                     ) : component.type === 'table' ? (
                       <DashboardTable data={component.data} loading={componentLoading.has(component.id)} />
-                    ) : (
+                    ) : component.type === 'kpi' ? (
                       <DashboardKPI data={component.data} loading={componentLoading.has(component.id)} />
-                    )}
+                    ) : (component.type === 'portfolio' || component.type === 'portfolio_chart') ? (
+                      <div className="w-full h-full" style={{ height: '100%' }}>
+                        <DashboardPortfolioChart 
+                          data={component.data} 
+                          loading={componentLoading.has(component.id)}
+                          componentId={component.backendId || component.id}
+                          onDataChange={async (newData) => {
+                            if (component.backendId && currentDashboardId) {
+                              try {
+                                await apiClient.updateComponent(component.backendId, {
+                                  config: newData
+                                });
+                                setComponents(prev => prev.map(c => 
+                                  c.id === component.id ? { ...c, data: newData } : c
+                                ));
+                                queryClient.invalidateQueries({ queryKey: ['dashboardComponents', currentDashboardId] });
+                              } catch (error) {
+                                console.error('Failed to update portfolio chart data:', error);
+                                toast({
+                                  title: "Erro",
+                                  description: "Falha ao atualizar dados do gráfico",
+                                  variant: "destructive"
+                                });
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               </div>
@@ -1115,6 +1198,13 @@ export default function Dashboard() {
       <KPIModal
         open={isKPIModalOpen}
         onClose={() => setIsKPIModalOpen(false)}
+        onSave={handleSaveComponent}
+        initialData={editingComponent}
+      />
+      
+      <PortfolioChartModal
+        open={isPortfolioChartModalOpen}
+        onClose={() => setIsPortfolioChartModalOpen(false)}
         onSave={handleSaveComponent}
         initialData={editingComponent}
       />

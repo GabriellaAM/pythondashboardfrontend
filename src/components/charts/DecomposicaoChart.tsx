@@ -8,6 +8,7 @@ interface DecomposicaoChartProps {
   fim?: string;
   segmentar?: boolean;
   acumular?: boolean;
+  containerMode?: boolean;
 }
 
 interface ApiData {
@@ -21,7 +22,8 @@ export function DecomposicaoChart({
   inicio, 
   fim, 
   segmentar = true, 
-  acumular = false 
+  acumular = false,
+  containerMode = false
 }: DecomposicaoChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,8 +193,9 @@ export function DecomposicaoChart({
     <PlotlyChart
       data={traces}
       layout={layout}
-      title="Decomposição de Retorno"
-      description={`Contribuição de cada ativo para o retorno da carteira ${carteira}`}
+      title={containerMode ? undefined : "Decomposição de Retorno"}
+      description={containerMode ? undefined : `Contribuição de cada ativo para o retorno da carteira ${carteira}`}
+      containerMode={containerMode}
     />
   );
 }

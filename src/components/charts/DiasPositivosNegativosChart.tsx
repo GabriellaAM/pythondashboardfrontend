@@ -7,6 +7,7 @@ interface DiasPositivosNegativosChartProps {
   inicio?: string;
   fim?: string;
   segmentar?: boolean;
+  containerMode?: boolean;
 }
 
 interface ApiData {
@@ -19,7 +20,8 @@ export function DiasPositivosNegativosChart({
   carteira, 
   inicio, 
   fim, 
-  segmentar = false 
+  segmentar = false,
+  containerMode = false
 }: DiasPositivosNegativosChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -188,8 +190,9 @@ export function DiasPositivosNegativosChart({
     <PlotlyChart
       data={[tracePositivos, traceNegativos, traceForaCarteira]}
       layout={layout}
-      title="Percentual de Dias Positivos/Negativos"
-      description={`Análise de dias positivos e negativos para ${carteira}`}
+      title={containerMode ? undefined : "Percentual de Dias Positivos/Negativos"}
+      description={containerMode ? undefined : `Análise de dias positivos e negativos para ${carteira}`}
+      containerMode={containerMode}
     />
   );
 }

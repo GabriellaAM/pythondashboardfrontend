@@ -7,6 +7,7 @@ import { frontendCache } from '../../lib/cache';
 interface OpenPositionsTableProps {
   carteira: string;
   brl?: boolean;
+  containerMode?: boolean;
 }
 
 interface PositionData {
@@ -23,7 +24,7 @@ interface ApiData {
   columns: string[];
 }
 
-export function OpenPositionsTable({ carteira, brl = false }: OpenPositionsTableProps) {
+export function OpenPositionsTable({ carteira, brl = false, containerMode = false }: OpenPositionsTableProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

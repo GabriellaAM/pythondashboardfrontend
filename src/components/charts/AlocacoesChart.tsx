@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
 import { frontendCache } from '../../lib/cache';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Button } from '../ui/button';
+import { X } from 'lucide-react';
 
 interface AlocacoesChartProps {
   carteira: string;
@@ -9,6 +11,7 @@ interface AlocacoesChartProps {
   fim?: string;
   segmentar?: boolean;
   realAloc?: boolean;
+  containerMode?: boolean;
 }
 
 interface ApiData {
@@ -23,11 +26,13 @@ export function AlocacoesChart({
   inicio, 
   fim, 
   segmentar = false, 
-  realAloc = false 
+  realAloc = false,
+  containerMode = false
 }: AlocacoesChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showWarnings, setShowWarnings] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,6 +71,8 @@ export function AlocacoesChart({
         const result = await response.json();
         frontendCache.set(cacheKey, result);
         setData(result);
+        // Resetar showWarnings quando novos dados são carregados
+        setShowWarnings(true);
         
       } catch (err) {
         console.error('Erro ao buscar dados de alocações:', err);
@@ -182,6 +189,41 @@ export function AlocacoesChart({
     }] : []
   };
 
+  if (containerMode) {
+    return (
+      <div className="w-full h-full flex flex-col" style={{ height: '100%' }}>
+        <div className="flex-1 min-h-0" style={{ height: '100%' }}>
+          <PlotlyChart
+            data={traces}
+            layout={layout}
+            containerMode={true}
+          />
+        </div>
+        {data.warnings && data.warnings.length > 0 && showWarnings && (
+          <div className="mt-2 flex-shrink-0">
+            <Alert variant="default" className="relative pr-8">
+              <AlertDescription className="text-xs">
+                {data.warnings.join(' ')}
+              </AlertDescription>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-2 right-2 h-6 w-6 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowWarnings(false);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </Alert>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <PlotlyChart
@@ -191,11 +233,19 @@ export function AlocacoesChart({
         description={`Evolução das alocações da carteira ${carteira} ao longo do tempo`}
       />
 
-      {data.warnings && data.warnings.length > 0 && (
-        <Alert variant="default">
+      {data.warnings && data.warnings.length > 0 && showWarnings && (
+        <Alert variant="default" className="relative pr-8">
           <AlertDescription className="text-xs">
             {data.warnings.join(' ')}
           </AlertDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2 h-6 w-6 p-0"
+            onClick={() => setShowWarnings(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </Alert>
       )}
     </div>

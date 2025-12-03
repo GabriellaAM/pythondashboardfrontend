@@ -7,6 +7,7 @@ interface CarteirasChartProps {
   brl?: boolean;
   inicio?: string;
   fim?: string;
+  containerMode?: boolean;
 }
 
 interface ApiData {
@@ -19,7 +20,8 @@ export function CarteirasChart({
   carteiras = ['EXC'], 
   brl = false, 
   inicio, 
-  fim 
+  fim,
+  containerMode = false
 }: CarteirasChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,8 +207,9 @@ export function CarteirasChart({
     <PlotlyChart
       data={traces}
       layout={layout}
-      title="Comparação de Carteiras"
-      description={brl ? 'Rentabilidade acumulada em Reais' : 'Rentabilidade acumulada em Dólares'}
+      title={containerMode ? undefined : "Comparação de Carteiras"}
+      description={containerMode ? undefined : (brl ? 'Rentabilidade acumulada em Reais' : 'Rentabilidade acumulada em Dólares')}
+      containerMode={containerMode}
     />
   );
 }

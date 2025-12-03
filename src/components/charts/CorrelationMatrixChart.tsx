@@ -8,6 +8,7 @@ interface CorrelationMatrixChartProps {
   fim?: string;
   janelaAmostral?: number;
   setorizar?: boolean;
+  containerMode?: boolean;
 }
 
 interface ApiData {
@@ -21,7 +22,8 @@ export function CorrelationMatrixChart({
   inicio, 
   fim,
   janelaAmostral = 30, 
-  setorizar = true  // padrão: setorizar=true, como no exemplo principal do notebook
+  setorizar = true,
+  containerMode = false
 }: CorrelationMatrixChartProps) {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -162,8 +164,9 @@ export function CorrelationMatrixChart({
     <PlotlyChart
       data={[trace]}
       layout={layout}
-      title="Matriz de Correlação"
-      description={`Correlação entre ativos da carteira ${carteira} (últimos ${janelaAmostral} dias)`}
+      title={containerMode ? undefined : "Matriz de Correlação"}
+      description={containerMode ? undefined : `Correlação entre ativos da carteira ${carteira} (últimos ${janelaAmostral} dias)`}
+      containerMode={containerMode}
     />
   );
 }

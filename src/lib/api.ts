@@ -44,7 +44,7 @@ interface Component {
   id: string;
   dashboard_id: string;
   name: string;
-  type: 'chart' | 'table' | 'kpi';
+  type: 'chart' | 'table' | 'kpi' | 'portfolio_chart';
   config?: Record<string, unknown>;
   python_script?: string;
   position_x?: number;
@@ -340,7 +340,7 @@ class ApiClient {
   async createComponent(data: {
     dashboard_id: string;
     name: string;
-    type: 'chart' | 'table' | 'kpi';
+    type: 'chart' | 'table' | 'kpi' | 'portfolio_chart';
     config?: any;
     python_script?: string;
     position_x?: number;

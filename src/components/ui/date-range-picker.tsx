@@ -35,7 +35,11 @@ export function DateRangePicker({
   ];
 
   return (
-    <div className={cn("grid gap-2", className)}>
+    <div 
+      className={cn("grid gap-2", className)}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -45,6 +49,8 @@ export function DateRangePicker({
               "w-[280px] justify-start text-left font-normal",
               !dateRange && "text-muted-foreground"
             )}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {dateRange?.from ? (
@@ -61,7 +67,12 @@ export function DateRangePicker({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent 
+          className="w-auto p-0" 
+          align="start"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex">
             <div className="border-r p-3 space-y-2 min-w-[140px]">
               <div className="text-sm font-medium mb-2">Períodos</div>
@@ -71,20 +82,29 @@ export function DateRangePicker({
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start text-xs"
-                  onClick={() => onDateRangeChange({ from: range.from, to: range.to })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDateRangeChange({ from: range.from, to: range.to });
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   {range.label}
                 </Button>
               ))}
             </div>
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={onDateRangeChange}
-              numberOfMonths={2}
-            />
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={onDateRangeChange}
+                numberOfMonths={2}
+              />
+            </div>
           </div>
         </PopoverContent>
       </Popover>
