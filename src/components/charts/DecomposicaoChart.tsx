@@ -37,10 +37,9 @@ export function DecomposicaoChart({
 
       try {
         // Check cache first
-        const cacheKey = frontendCache.generateKey(`/api/clean/decomposicao/${inicio}/${fim}`, { 
+        const cacheKey = frontendCache.generateKey(`/api/portfolio/visualizations/decomposicao/${inicio}/${fim}`, { 
           carteira, 
-          segmentar, 
-          acumular 
+          brl: false
         });
         const cachedData = frontendCache.get<ApiData>(cacheKey);
         
@@ -54,7 +53,7 @@ export function DecomposicaoChart({
         setError(null);
         
         const response = await fetch(
-          `http://localhost:8000/api/clean/decomposicao/${inicio}/${fim}?carteira=${carteira}&segmentar=${segmentar}&acumular=${acumular}`
+          `http://localhost:8000/api/portfolio/visualizations/decomposicao/${inicio}/${fim}?carteira=${carteira}&brl=false`
         );
         
         if (!response.ok) {

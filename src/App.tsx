@@ -145,6 +145,13 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/portfolio/:carteira" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Portfolio />
+                </Layout>
+              </ProtectedRoute>
+            } />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />

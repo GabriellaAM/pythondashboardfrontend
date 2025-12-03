@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
 import { frontendCache } from '../../lib/cache';
+import { Alert, AlertDescription } from '../ui/alert';
 
 interface AtivosChartProps {
   carteira: string;
@@ -12,6 +13,7 @@ interface ApiData {
   data: any[];
   columns: string[];
   index: string[];
+  warnings?: string[];
 }
 
 export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
@@ -171,11 +173,21 @@ export function AtivosChart({ carteira, inicio, fim }: AtivosChartProps) {
   };
 
   return (
-    <PlotlyChart
-      data={[trace]}
-      layout={layout}
-      title="Performance Individual dos Ativos"
-      description={`Performance acumulada dos ativos da carteira ${carteira}`}
-    />
+    <div className="space-y-2">
+      <PlotlyChart
+        data={[trace]}
+        layout={layout}
+        title="Performance Individual dos Ativos"
+        description={`Performance acumulada dos ativos da carteira ${carteira}`}
+      />
+
+      {data.warnings && data.warnings.length > 0 && (
+        <Alert variant="default">
+          <AlertDescription className="text-xs">
+            {data.warnings.join(' ')}
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 }

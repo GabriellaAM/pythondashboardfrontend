@@ -33,6 +33,15 @@ class FrontendCache {
 
   clear(): void {
     this.cache.clear();
+    console.log('🧹 Cache do frontend limpo');
+  }
+
+  // Limpar cache e retornar número de entradas removidas
+  clearWithStats(): number {
+    const size = this.cache.size;
+    this.cache.clear();
+    console.log(`🧹 Cache do frontend limpo: ${size} entradas removidas`);
+    return size;
   }
 
   // Generate cache key from parameters

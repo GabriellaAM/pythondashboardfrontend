@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlotlyChart } from './PlotlyChart';
 import { frontendCache } from '../../lib/cache';
+import { Alert, AlertDescription } from '../ui/alert';
 
 interface AlocacoesChartProps {
   carteira: string;
@@ -14,6 +15,7 @@ interface ApiData {
   data: any[];
   columns: string[];
   index: string[];
+  warnings?: string[];
 }
 
 export function AlocacoesChart({ 
@@ -181,11 +183,21 @@ export function AlocacoesChart({
   };
 
   return (
-    <PlotlyChart
-      data={traces}
-      layout={layout}
-      title="Alocação de Ativos ao Longo do Tempo"
-      description={`Evolução das alocações da carteira ${carteira} ao longo do tempo`}
-    />
+    <div className="space-y-2">
+      <PlotlyChart
+        data={traces}
+        layout={layout}
+        title="Alocação de Ativos ao Longo do Tempo"
+        description={`Evolução das alocações da carteira ${carteira} ao longo do tempo`}
+      />
+
+      {data.warnings && data.warnings.length > 0 && (
+        <Alert variant="default">
+          <AlertDescription className="text-xs">
+            {data.warnings.join(' ')}
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 }

@@ -43,8 +43,14 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { cn } from "@/lib/utils";
 
+const portfolioCarteiras = [
+  { title: "Portfolio EXC", url: "/portfolio/EXC", icon: BarChart3 },
+  { title: "Portfolio AC", url: "/portfolio/AC", icon: BarChart3 },
+  { title: "Portfolio LC", url: "/portfolio/LC", icon: BarChart3 },
+  { title: "Portfolio HB", url: "/portfolio/HB", icon: BarChart3 },
+];
+
 const mainNavItems = [
-  { title: "Portfolio", url: "/portfolio", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -559,6 +565,35 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             )}
+          </SidebarGroup>
+        )}
+
+        {/* Portfolio Navigation */}
+        {!collapsed && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Portfolios</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {portfolioCarteiras.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
+                          currentPath === item.url || currentPath.startsWith(item.url + '/')
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        )}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
         )}
 

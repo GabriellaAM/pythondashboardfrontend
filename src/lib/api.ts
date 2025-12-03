@@ -517,6 +517,27 @@ class ApiClient {
       };
     }>(`/api/portfolio/visualizations/dashboard-completo/${inicio}/${fim}?carteira=${carteira}&brl=${brl}`);
   }
+
+  // Cache management
+  async clearBackendCache() {
+    return this.request<{
+      success: boolean;
+      message: string;
+      entries_cleared: number;
+    }>('/api/portfolio/visualizations/cache/clear', {
+      method: 'POST',
+    });
+  }
+
+  async getCacheStats() {
+    return this.request<{
+      total_entries: number;
+      valid_entries: number;
+      expired_entries: number;
+      ttl_seconds: number;
+      cache_keys: string[];
+    }>('/api/portfolio/visualizations/cache/stats');
+  }
 }
 
 export const apiClient = new ApiClient();
